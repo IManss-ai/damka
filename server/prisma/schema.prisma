@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  username      String   @unique
+  email         String   @unique
+  passwordHash  String
+  city          String   @default("Almaty")
+  eloRating     Int      @default(1200)
+  coins         Int      @default(500)
+  bossesBeaten  Int      @default(0)
+  streak        Int      @default(0)
+  lastPlayedAt  DateTime?
+  isPro         Boolean  @default(false)
+  nemesisId     String?
+  createdAt     DateTime @default(now())
+
+  gamesAsWhite      Game[]            @relation("WhitePlayer")
+  gamesAsBlack      Game[]            @relation("BlackPlayer")
+  bossProgress      BossProgress[]
+  puzzleAttempts    PuzzleAttempt[]
+  userCosmetics     UserCosmetic[]
+  nemesisP1         NemesisRecord[]   @relation("Player1")
+  nemesisP2         NemesisRecord[]   @relation("Player2")
+  tournamentsJoined TournamentPlayer[]
+  ghostGames        GhostGame[]
+}
+
+model Game {
+  id              String    @id @default(uuid())
+  whitePlayerId   String
+  blackPlayerId   String?
+  moves           String    @default("[]")
+  result          String    @default("ongoing")
+  duration        Int       @default(0)
+  wagerAmount     Int       @default(0)
+  eloChange       Int       @default(0)
+  gameMode        String    @default("casual")
+  aiDifficulty    String?
+  bossId          Int?
+  matchStory      String?
+  isSpectatable   Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  white           User      @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  black           User?     @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  ghostGames      GhostGame[]
+}
+
+model Boss {
+  id          Int     @id
+  name        String
+  personality String
+  eloStrength Int
+  rewardType  String
+  rewardName  String
+  description String
+
+  progress    BossProgress[]
+}
+
+model BossProgress {
+  userId    String
+  bossId    Int
+  beaten    Boolean  @default(false)
+  attempts  Int      @default(0)
+  beatenAt  DateTime?
+
+  user      User     @relation(fields: [userId], references: [id])
+  boss      Boss     @relation(fields: [bossId], references: [id])
+  @@id([userId, bossId])
+}
+
+model DailyPuzzle {
+  id          String   @id @default(uuid())
+  date        DateTime @unique
+  boardState  String
+  solution    String
+  difficulty  Int      @default(3)
+  attempts    PuzzleAttempt[]
+}
+
+model PuzzleAttempt {
+  id          String      @id @default(uuid())
+  userId      String
+  puzzleId    String
+  solved      Boolean     @default(false)
+  movesUsed   Int         @default(0)
+  timeSeconds Int         @default(0)
+  solvedAt    DateTime?
+
+  user        User        @relation(fields: [userId], references: [id])
+  puzzle      DailyPuzzle @relation(fields: [puzzleId], references: [id])
+  @@unique([userId, puzzleId])
+}
+
+model Cosmetic {
+  id          String   @id @default(uuid())
+  type        String
+  name        String
+  price       Int      @default(200)
+  rarity      String   @default("common")
+  cssClass    String   @default("")
+  userCosmetics UserCosmetic[]
+}
+
+model UserCosmetic {
+  userId      String
+  cosmeticId  String
+  equipped    Boolean  @default(false)
+  acquiredAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  cosmetic    Cosmetic @relation(fields: [cosmeticId], references: [id])
+  @@id([userId, cosmeticId])
+}
+
+model CityWeeklyScore {
+  id          String   @id @default(uuid())
+  weekStart   DateTime
+  city        String
+  totalPoints Int      @default(0)
+  rank        Int      @default(0)
+  @@unique([weekStart, city])
+}
+
+model Tournament {
+  id          String   @id @default(uuid())
+  creatorId   String
+  name        String
+  status      String   @default("waiting")
+  maxPlayers  Int      @default(4)
+  bracket     String   @default("{}")
+  prizePool   Int      @default(0)
+  createdAt   DateTime @default(now())
+  players     TournamentPlayer[]
+}
+
+model TournamentPlayer {
+  tournamentId  String
+  userId        String
+  currentRound  Int      @default(1)
+  eliminated    Boolean  @default(false)
+
+  tournament    Tournament @relation(fields: [tournamentId], references: [id])
+  user          User       @relation(fields: [userId], references: [id])
+  @@id([tournamentId, userId])
+}
+
+model NemesisRecord {
+  id        String  @id @default(uuid())
+  player1Id String
+  player2Id String
+  p1Wins    Int     @default(0)
+  p2Wins    Int     @default(0)
+  isNemesis Boolean @default(false)
+
+  player1   User    @relation("Player1", fields: [player1Id], references: [id])
+  player2   User    @relation("Player2", fields: [player2Id], references: [id])
+  @@unique([player1Id, player2Id])
+}
+
+model GhostGame {
+  userId        String
+  gameId        String
+  isPersonalBest Boolean @default(false)
+
+  user          User   @relation(fields: [userId], references: [id])
+  game          Game   @relation(fields: [gameId], references: [id])
+  @@id([userId, gameId])
+}

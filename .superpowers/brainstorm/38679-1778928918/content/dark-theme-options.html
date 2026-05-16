@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Damka Dark Theme Options</title>
+<script src="../../../scripts/helper.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 24px; }
+  h1 { text-align: center; font-size: 22px; margin-bottom: 6px; color: #fff; }
+  .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 28px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; }
+
+  .card { border-radius: 12px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s; }
+  .card:hover { transform: translateY(-3px); }
+  .card.selected { border-color: #4ade80 !important; }
+  .card.selected .card-label { background: #4ade80; color: #000; }
+
+  .card-label { background: #333; color: #ccc; text-align: center; padding: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ---- OPTION A: Chess.com Classic Dark ---- */
+  .theme-chess { background: #262421; border-color: #3d3a36; }
+  .theme-chess .nav { background: #1d1b19; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #3d3a36; }
+  .theme-chess .nav-logo { color: #7fa650; font-weight: 900; font-size: 15px; }
+  .theme-chess .nav-item { color: #8b8b8b; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+  .theme-chess .nav-item.active { color: #fff; background: #3d3a36; }
+  .theme-chess .hero { padding: 20px 16px; }
+  .theme-chess .board { display: grid; grid-template-columns: repeat(8, 28px); gap: 0; margin-bottom: 14px; }
+  .theme-chess .sq-dark { width: 28px; height: 28px; background: #739552; }
+  .theme-chess .sq-light { width: 28px; height: 28px; background: #ebecd0; }
+  .theme-chess .sq-dark.has-piece, .theme-chess .sq-light.has-piece { display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .theme-chess .stats { display: flex; gap: 8px; }
+  .theme-chess .stat { background: #3d3a36; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #bbb; }
+  .theme-chess .stat strong { color: #7fa650; display: block; font-size: 14px; }
+  .theme-chess .cta { background: #7fa650; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer; }
+
+  /* ---- OPTION B: Midnight Blue Gaming ---- */
+  .theme-midnight { background: #0f1117; border-color: #1e2333; }
+  .theme-midnight .nav { background: #0a0c14; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1e2333; }
+  .theme-midnight .nav-logo { color: #6c8eff; font-weight: 900; font-size: 15px; }
+  .theme-midnight .nav-item { color: #5a6480; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+  .theme-midnight .nav-item.active { color: #fff; background: #1e2333; }
+  .theme-midnight .hero { padding: 20px 16px; }
+  .theme-midnight .board { display: grid; grid-template-columns: repeat(8, 28px); gap: 0; margin-bottom: 14px; }
+  .theme-midnight .sq-dark { width: 28px; height: 28px; background: #2a4080; }
+  .theme-midnight .sq-light { width: 28px; height: 28px; background: #8fa8d8; }
+  .theme-midnight .sq-dark.has-piece, .theme-midnight .sq-light.has-piece { display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .theme-midnight .stats { display: flex; gap: 8px; }
+  .theme-midnight .stat { background: #1e2333; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #8fa3cc; }
+  .theme-midnight .stat strong { color: #6c8eff; display: block; font-size: 14px; }
+  .theme-midnight .cta { background: linear-gradient(135deg, #6c8eff, #a855f7); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer; }
+
+  /* ---- OPTION C: Kazakhstan Gold ---- */
+  .theme-kz { background: #141008; border-color: #2a2010; }
+  .theme-kz .nav { background: #0c0a04; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a2010; }
+  .theme-kz .nav-logo { color: #d4a017; font-weight: 900; font-size: 15px; }
+  .theme-kz .nav-item { color: #6b5a30; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+  .theme-kz .nav-item.active { color: #fff; background: #2a2010; }
+  .theme-kz .hero { padding: 20px 16px; }
+  .theme-kz .board { display: grid; grid-template-columns: repeat(8, 28px); gap: 0; margin-bottom: 14px; }
+  .theme-kz .sq-dark { width: 28px; height: 28px; background: #7a4f00; }
+  .theme-kz .sq-light { width: 28px; height: 28px; background: #e8c87a; }
+  .theme-kz .sq-dark.has-piece, .theme-kz .sq-light.has-piece { display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .theme-kz .stats { display: flex; gap: 8px; }
+  .theme-kz .stat { background: #2a2010; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #b8a060; }
+  .theme-kz .stat strong { color: #d4a017; display: block; font-size: 14px; }
+  .theme-kz .cta { background: linear-gradient(135deg, #d4a017, #f0c040); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer; }
+
+  .rec-badge { display: inline-block; background: #4ade80; color: #000; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<h1>Damka — Dark Theme Direction</h1>
+<p class="subtitle">Click a card to select your preferred direction. Based on chess.com-style dark UI.</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card theme-chess" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-label">A — Chess.com Classic</div>
+    <div class="nav">
+      <span class="nav-logo">♟ Damka</span>
+      <span class="nav-item active">Play</span>
+      <span class="nav-item">Bosses</span>
+      <span class="nav-item">Leaderboard</span>
+    </div>
+    <div class="hero">
+      <div class="board">
+        <!-- Row 0 -->
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div>
+        <div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div>
+        <div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong>2,841</strong>online</div>
+        <div class="stat"><strong>#1</strong>Almaty</div>
+        <div class="stat"><strong>1200</strong>Elo</div>
+      </div>
+      <button class="cta">Play Now</button>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card theme-midnight" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-label">B — Midnight Blue <span class="rec-badge">Recommended</span></div>
+    <div class="nav">
+      <span class="nav-logo">♟ Damka</span>
+      <span class="nav-item active">Play</span>
+      <span class="nav-item">Bosses</span>
+      <span class="nav-item">Leaderboard</span>
+    </div>
+    <div class="hero">
+      <div class="board">
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div>
+        <div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div>
+        <div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong>2,841</strong>online</div>
+        <div class="stat"><strong>#1</strong>Almaty</div>
+        <div class="stat"><strong>1200</strong>Elo</div>
+      </div>
+      <button class="cta">Play Now</button>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card theme-kz" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-label">C — Kazakhstan Gold</div>
+    <div class="nav">
+      <span class="nav-logo">♟ Damka</span>
+      <span class="nav-item active">Play</span>
+      <span class="nav-item">Bosses</span>
+      <span class="nav-item">Leaderboard</span>
+    </div>
+    <div class="hero">
+      <div class="board">
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div>
+        <div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div><div class="sq-dark has-piece">⚫</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark"></div>
+        <div class="sq-dark"></div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+        <div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div>
+        <div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div><div class="sq-dark has-piece">⚪</div><div class="sq-light"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong>2,841</strong>online</div>
+        <div class="stat"><strong>#1</strong>Almaty</div>
+        <div class="stat"><strong>1200</strong>Elo</div>
+      </div>
+      <button class="cta">Play Now</button>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align:center;color:#666;font-size:12px;margin-top:20px;">Click a card to select. All three have the same layout — only colors differ.</p>
+
+<script>
+function toggleSelect(el) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (window.recordChoice) window.recordChoice(el.dataset.choice, el.querySelector('.card-label').textContent.trim());
+}
+</script>
+</body>
+</html>

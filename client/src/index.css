@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-accent:        #7fa650;
+    --color-accent-hover:  #9fc870;
+    --color-surface-base:  #262421;
+    --color-surface-nav:   #1d1b19;
+    --color-surface-card:  #312e2b;
+    --color-surface-raised:#3d3a36;
+    --color-border:        #3d3a36;
+    --color-ink:           #e0d9d0;
+    --color-ink-muted:     #a09888;
+    --color-ink-faint:     #5a5450;
+    --color-coin:          #fbbf24;
+    --color-danger:        #e15f5f;
+  }
+  body {
+    background-color: var(--color-surface-base);
+    color: var(--color-ink);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-surface-nav); }
+  ::-webkit-scrollbar-thumb { background: var(--color-surface-raised); border-radius: 3px; }
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-accent);
+    color: #fff;
+    font-weight: 700;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.1s;
+  }
+  .btn-primary:hover { background-color: var(--color-accent-hover); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-surface-raised);
+    color: var(--color-ink);
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.1s;
+  }
+  .btn-secondary:hover { background-color: #4a4540; }
+  .btn-secondary:active { transform: scale(0.97); }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--color-danger);
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(225, 95, 95, 0.35);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .btn-danger:hover { background-color: rgba(225,95,95,0.1); border-color: var(--color-danger); }
+  .btn-danger:active { transform: scale(0.97); }
+
+  .card {
+    background-color: var(--color-surface-card);
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    padding: 1.5rem;
+  }
+  .card-sm {
+    background-color: var(--color-surface-card);
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    padding: 1rem;
+  }
+  .input {
+    width: 100%;
+    background-color: var(--color-surface-nav);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input::placeholder { color: var(--color-ink-faint); }
+  .input:focus { border-color: var(--color-accent); }
+  .input option { background-color: var(--color-surface-nav); }
+
+  .stat-card {
+    background-color: var(--color-surface-nav);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid var(--color-border);
+  }
+  .section-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+}
