@@ -5,8 +5,8 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "install:all": "cd server && npm install && cd ../client && npm install",
-    "build": "cd client && npm install && npm run build && cd ../server && npm install && npm run build",
-    "start": "cd server && npm start",
+    "build": "cd client && npm install && npm run build && cd ../server && npm install && npx prisma generate && npm run build",
+    "start": "cd server && npx prisma migrate deploy && node dist/index.js",
     "postinstall": "npm run install:all 2>/dev/null || true"
   }
 }
