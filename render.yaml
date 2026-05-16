@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: damka
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: |
+      cd client && npm install && npm run build
+      cd ../server && npm install --include=dev && npx prisma generate && npx tsc
+    startCommand: cd server && npx prisma migrate deploy && node dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLIENT_URL
+        sync: false
