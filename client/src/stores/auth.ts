@@ -30,7 +30,8 @@ export const useAuth = create<AuthStore>()(persist((set) => ({
     set({ user: null });
   },
   fetchMe: async () => {
-    try { const { user } = await api.auth.me(); set({ user }); } catch { /* keep persisted user on network failure */ }
+    const res = await api.auth.me();
+    if (res?.user) set({ user: res.user });
   },
   setUser: (user) => set({ user }),
 }), { name: 'damka-auth' }));

@@ -28,7 +28,7 @@ export default function Login() {
         className="w-full max-w-sm relative"
       >
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3 animate-float inline-block">♟️</div>
+          <div className="text-5xl mb-3 animate-float inline-block select-none" style={{ fontFamily: 'serif' }}>♟</div>
           <h1 className="font-display text-2xl font-black text-ink">Welcome back</h1>
           <p className="text-ink-muted text-sm mt-1">Sign in to continue your rivalry</p>
         </div>

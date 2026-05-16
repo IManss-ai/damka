@@ -2,8 +2,15 @@ const BASE = '/api';
 
 async function req(path: string, opts: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...opts.headers }, ...opts });
-  if (!res.ok) throw await res.json();
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw err;
+  }
   return res.json();
+}
+
+async function reqSilent(path: string, opts: RequestInit = {}) {
+  try { return await req(path, opts); } catch { return null; }
 }
 
 export const api = {
@@ -11,7 +18,7 @@ export const api = {
     register: (data: any) => req('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     login: (data: any) => req('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     logout: () => req('/auth/logout', { method: 'POST' }),
-    me: () => req('/auth/me'),
+    me: () => reqSilent('/auth/me'),
   },
   leaderboard: {
     global: () => req('/leaderboard/global'),

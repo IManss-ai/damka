@@ -1,8 +1,28 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
 const prisma = new PrismaClient();
 
+const MOCK_PLAYERS = [
+  { username: 'Arman_KZ', city: 'Almaty', elo: 1847, wins: 312, games: 380 },
+  { username: 'ZhansayaQ', city: 'Astana', elo: 1791, wins: 289, games: 341 },
+  { username: 'Darkhan_Pro', city: 'Almaty', elo: 1734, wins: 201, games: 260 },
+  { username: 'AigulShymkent', city: 'Shymkent', elo: 1682, wins: 178, games: 230 },
+  { username: 'NurbolTactician', city: 'Karaganda', elo: 1651, wins: 156, games: 208 },
+  { username: 'Beibut_Almaty', city: 'Almaty', elo: 1623, wins: 143, games: 195 },
+  { username: 'SultanAstana', city: 'Astana', elo: 1589, wins: 134, games: 189 },
+  { username: 'Dinara_Q', city: 'Aktobe', elo: 1541, wins: 112, games: 162 },
+  { username: 'TimurPawlodar', city: 'Pavlodar', elo: 1498, wins: 98, games: 148 },
+  { username: 'KazakhKing', city: 'Taraz', elo: 1467, wins: 89, games: 134 },
+  { username: 'AkbikenShym', city: 'Shymkent', elo: 1423, wins: 76, games: 121 },
+  { username: 'Ruslan_kz', city: 'Karaganda', elo: 1398, wins: 67, games: 112 },
+  { username: 'Madina_Pro', city: 'Astana', elo: 1356, wins: 58, games: 99 },
+  { username: 'AlexeyAlmaty', city: 'Almaty', elo: 1312, wins: 49, games: 88 },
+  { username: 'ZarinaTaraz', city: 'Taraz', elo: 1278, wins: 41, games: 79 },
+];
+
 async function main() {
-  // Seed bosses
+  // Bosses
   const bosses = [
     { id: 1, name: 'The Apprentice', personality: 'Cautious, makes minor blunders', eloStrength: 900, rewardType: 'board', rewardName: 'Bronze Oak Board', description: 'A beginner who just learned the rules. Beat them to start your Boss Rush journey.' },
     { id: 2, name: 'The Tactician', personality: 'Solid fundamentals, rarely blunders', eloStrength: 1100, rewardType: 'piece', rewardName: 'Silver Coins Set', description: 'Knows the basics well. You will need to think two moves ahead.' },
@@ -10,9 +30,11 @@ async function main() {
     { id: 4, name: 'The Sage', personality: 'Positional master, almost never blunders', eloStrength: 1500, rewardType: 'board', rewardName: 'Golden Marble Board', description: 'Patient, strategic, deadly. Every move has a purpose.' },
     { id: 5, name: 'The Grandmaster', personality: 'Near-perfect play', eloStrength: 1800, rewardType: 'piece', rewardName: 'Legendary Crown Set', description: 'The final boss. Almost unbeatable. Are you ready?' },
   ];
-  for (const boss of bosses) await prisma.boss.upsert({ where: { id: boss.id }, update: {}, create: boss });
+  for (const boss of bosses) {
+    await prisma.boss.upsert({ where: { id: boss.id }, update: {}, create: boss });
+  }
 
-  // Seed cosmetics
+  // Cosmetics
   const cosmetics = [
     { type: 'board', name: 'Classic Wood', price: 0, rarity: 'common', cssClass: 'board-classic' },
     { type: 'board', name: 'Dark Marble', price: 300, rarity: 'rare', cssClass: 'board-marble' },
@@ -20,11 +42,85 @@ async function main() {
     { type: 'board', name: 'Neon Grid', price: 500, rarity: 'epic', cssClass: 'board-neon' },
     { type: 'piece', name: 'Classic', price: 0, rarity: 'common', cssClass: 'piece-classic' },
     { type: 'piece', name: 'Crystal', price: 400, rarity: 'epic', cssClass: 'piece-crystal' },
-    { type: 'piece', name: 'Emoji 😄', price: 250, rarity: 'rare', cssClass: 'piece-emoji' },
+    { type: 'piece', name: 'Gold Rush', price: 600, rarity: 'legendary', cssClass: 'piece-gold' },
     { type: 'fx', name: 'Sparkle', price: 200, rarity: 'common', cssClass: 'fx-sparkle' },
     { type: 'fx', name: 'Fireworks', price: 400, rarity: 'rare', cssClass: 'fx-fireworks' },
   ];
-  for (const c of cosmetics) await prisma.cosmetic.create({ data: c }).catch(() => {});
+  for (const c of cosmetics) {
+    await prisma.cosmetic.create({ data: c }).catch(() => {});
+  }
+
+  // Mock players
+  const passwordHash = await bcrypt.hash('demo1234', 10);
+  const createdUsers: any[] = [];
+
+  for (const p of MOCK_PLAYERS) {
+    const existing = await prisma.user.findUnique({ where: { username: p.username } });
+    if (!existing) {
+      const user = await prisma.user.create({
+        data: {
+          username: p.username,
+          email: `${p.username.toLowerCase()}@damka.kz`,
+          passwordHash,
+          city: p.city,
+          eloRating: p.elo,
+          coins: Math.floor(Math.random() * 800) + 200,
+          bossesBeaten: Math.floor(Math.random() * 5),
+          streak: Math.floor(Math.random() * 14),
+          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+      createdUsers.push({ ...user, wins: p.wins, games: p.games });
+    }
+  }
+
+  // City weekly scores
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+
+  const cityScores: Record<string, number> = {
+    'Almaty': 847,
+    'Astana': 734,
+    'Shymkent': 521,
+    'Karaganda': 389,
+    'Aktobe': 267,
+    'Pavlodar': 198,
+    'Taraz': 156,
+  };
+
+  for (const [city, points] of Object.entries(cityScores)) {
+    await prisma.cityWeeklyScore.upsert({
+      where: { weekStart_city: { weekStart, city } },
+      update: { totalPoints: points },
+      create: { weekStart, city, totalPoints: points, rank: 0 },
+    });
+  }
+
+  // Daily puzzle for today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const puzzleExists = await prisma.dailyPuzzle.findFirst({ where: { date: today } });
+  if (!puzzleExists) {
+    await prisma.dailyPuzzle.create({
+      data: {
+        date: today,
+        boardState: JSON.stringify({
+          board: Array(8).fill(null).map((_, r) => Array(8).fill(null).map((_, c) => {
+            if ((r + c) % 2 === 1) {
+              if (r < 3) return { id: `b${r}${c}`, color: 'black', type: 'man', row: r, col: c };
+              if (r > 4) return { id: `w${r}${c}`, color: 'white', type: 'man', row: r, col: c };
+            }
+            return null;
+          })),
+          currentTurn: 'white',
+        }),
+        solution: JSON.stringify([{ from: { row: 5, col: 0 }, to: { row: 4, col: 1 } }]),
+        difficulty: 2,
+      },
+    });
+  }
 
   console.log('Seed complete ✅');
 }

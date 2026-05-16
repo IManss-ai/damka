@@ -30,7 +30,7 @@ export default function Register() {
         className="w-full max-w-sm relative"
       >
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3 animate-float inline-block">♟️</div>
+          <div className="text-5xl mb-3 animate-float inline-block select-none" style={{ fontFamily: 'serif' }}>♟</div>
           <h1 className="font-display text-2xl font-black text-ink">Join Damka</h1>
           <p className="text-ink-muted text-sm mt-1">
             <span className="text-coin font-bold">500 coins</span> on signup. Represent your city.
