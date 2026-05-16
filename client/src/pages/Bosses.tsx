@@ -13,7 +13,7 @@ export default function Bosses() {
   const [bosses, setBosses] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user) api.bosses.list().then(setBosses).catch(() => {});
+    api.bosses.list().then(setBosses).catch(() => {});
   }, [user]);
 
   function challengeBoss(boss: any) {

@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../stores/auth';
 
-const RARITY_COLORS: Record<string, string> = { legendary: 'border-yellow-400 bg-yellow-50', epic: 'border-purple-400 bg-purple-50', rare: 'border-blue-400 bg-blue-50', common: 'border-amber-200 bg-white' };
+const RARITY_BADGE: Record<string, string> = {
+  legendary: 'text-yellow-400',
+  epic: 'text-purple-400',
+  rare: 'text-blue-400',
+  common: 'text-ink-faint',
+};
+
+const TYPE_LABEL: Record<string, string> = { board: 'Board', piece: 'Piece Set', fx: 'Effect' };
 
 export default function Shop() {
-  const { user, setUser, fetchMe } = useAuth();
+  const { user, setUser } = useAuth();
+  const nav = useNavigate();
   const [cosmetics, setCosmetics] = useState<any[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [buying, setBuying] = useState<string | null>(null);
@@ -32,40 +41,75 @@ export default function Shop() {
     }
   }
 
+  const groups = ['board', 'piece', 'fx'];
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-3xl font-black text-amber-800">Shop</h1><p className="text-amber-500">Spend coins on cosmetics</p></div>
-        {user && <div className="card text-center px-4 py-2"><p className="font-black text-amber-700">Coins: {user.coins}</p><p className="text-xs text-amber-400">your balance</p></div>}
-      </div>
-      {msg && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-700 text-sm mb-4">{msg}</div>}
-      <div className="grid grid-cols-2 gap-4">
-        {cosmetics.map(c => (
-          <div key={c.id} className={`card border-2 ${RARITY_COLORS[c.rarity]}`}>
-            <div className="text-3xl mb-2">{c.type === 'board' ? '🎯' : c.type === 'piece' ? '⚫' : '✨'}</div>
-            <h3 className="font-black text-amber-800">{c.name}</h3>
-            <p className="text-xs text-amber-400 capitalize mb-3">{c.type} · {c.rarity}</p>
-            {c.price === 0 ? (
-              <span className="text-green-600 font-bold text-sm">Free (default)</span>
-            ) : owned.has(c.id) ? (
-              <span className="text-green-600 font-bold text-sm">Owned</span>
-            ) : (
-              <button onClick={() => buy(c.id, c.price, c.name)} disabled={!!buying || !user || (user.coins < c.price)} className="btn-primary text-sm w-full disabled:opacity-50">
-                {buying === c.id ? 'Buying...' : `${c.price} coins`}
-              </button>
-            )}
+        <div>
+          <h1 className="text-2xl font-black text-ink">Shop</h1>
+          <p className="text-ink-muted text-sm">Spend coins on cosmetics</p>
+        </div>
+        {user && (
+          <div className="card-sm text-center">
+            <p className="font-black text-coin text-lg">{user.coins}</p>
+            <p className="text-xs text-ink-faint">coins</p>
           </div>
-        ))}
+        )}
       </div>
 
-      <div className="card mt-8 border-2 border-amber-400 bg-amber-50">
-        <div className="flex items-center gap-4">
-          <div className="text-4xl">⭐</div>
-          <div className="flex-1">
-            <h3 className="font-black text-amber-800">Upgrade to Pro</h3>
-            <p className="text-sm text-amber-600">Exclusive board themes, animated pieces, priority matchmaking, and a Pro badge on your profile.</p>
+      {msg && (
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 text-accent text-sm mb-4">{msg}</div>
+      )}
+
+      {groups.map(group => {
+        const items = cosmetics.filter(c => c.type === group);
+        if (!items.length) return null;
+        return (
+          <div key={group} className="mb-8">
+            <p className="section-title mb-3">{TYPE_LABEL[group] || group}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {items.map(c => (
+                <div key={c.id} className="card border border-surface-border flex flex-col gap-2">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-bold text-ink text-sm">{c.name}</h3>
+                    <span className={`text-xs font-semibold capitalize ${RARITY_BADGE[c.rarity]}`}>{c.rarity}</span>
+                  </div>
+                  <p className="text-xs text-ink-faint capitalize">{TYPE_LABEL[c.type]}</p>
+                  <div className="mt-auto pt-1">
+                    {c.price === 0 ? (
+                      <span className="text-accent font-bold text-sm">Free (default)</span>
+                    ) : owned.has(c.id) ? (
+                      <span className="text-accent font-bold text-sm">Owned</span>
+                    ) : (
+                      <button
+                        onClick={() => buy(c.id, c.price, c.name)}
+                        disabled={!!buying || !user || (!!user && user.coins < c.price)}
+                        className="btn-primary text-sm w-full disabled:opacity-40"
+                      >
+                        {buying === c.id ? 'Buying...' : `${c.price} coins`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <button className="btn-primary">Upgrade — $4.99</button>
+        );
+      })}
+
+      <div className="card border border-yellow-500/30 bg-yellow-500/5 mt-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-black text-ink">Pro Membership</h3>
+              <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">PRO</span>
+            </div>
+            <p className="text-sm text-ink-muted">Animated pieces, exclusive boards, Pro badge, priority matchmaking, and detailed statistics.</p>
+          </div>
+          <button onClick={() => nav('/pro')} className="btn-primary shrink-0">
+            $4.99/mo
+          </button>
         </div>
       </div>
     </div>

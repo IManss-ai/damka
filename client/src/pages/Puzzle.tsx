@@ -16,7 +16,8 @@ export default function Puzzle() {
 
   if (!puzzle) return <div className="text-center py-20 text-ink-muted text-sm">Loading today's puzzle...</div>;
 
-  const board = typeof puzzle.boardState === 'string' ? JSON.parse(puzzle.boardState) : puzzle.boardState;
+  const parsed = typeof puzzle.boardState === 'string' ? JSON.parse(puzzle.boardState) : puzzle.boardState;
+  const board = parsed.board ?? parsed;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">

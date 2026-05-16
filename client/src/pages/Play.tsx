@@ -27,6 +27,13 @@ const MODES = [
     badge: 'Competitive',
   },
   {
+    id: 'blitz',
+    title: 'Blitz',
+    sub: '3-min clock',
+    desc: 'Each player has 3 minutes total. Clock runs on your turn. Run out of time — you lose.',
+    badge: 'New',
+  },
+  {
     id: 'chaos',
     title: 'Chaos',
     sub: 'Random board',

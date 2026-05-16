@@ -10,6 +10,8 @@ import { addCityPoints } from './services/city';
 import { updateNemesis } from './services/nemesis';
 import { v4 as uuidv4 } from 'uuid';
 
+const BLITZ_MS = 3 * 60 * 1000; // 3 minutes per player
+
 interface ActiveGame {
   id: string;
   state: GameState;
@@ -23,6 +25,10 @@ interface ActiveGame {
   aiDifficulty?: 'easy' | 'medium' | 'hard';
   bossId?: number;
   spectators: number;
+  // Blitz clock
+  whiteTimeMs?: number;
+  blackTimeMs?: number;
+  turnStartTime?: number;
 }
 
 const activeGames = new Map<string, ActiveGame>();
@@ -33,11 +39,15 @@ export function setupSocket(io: Server) {
     // Create a new game room
     socket.on('game:create', async ({ userId, username, wagerAmount = 0, gameMode = 'casual', aiDifficulty, bossId }) => {
       const gameId = uuidv4();
+      const isBlitz = gameMode === 'blitz';
       const game: ActiveGame = {
         id: gameId, state: createGame(),
         whitePlayerId: userId, whiteUsername: username,
         wagerAmount, gameMode, startTime: Date.now(),
         aiDifficulty, bossId, spectators: 0,
+        whiteTimeMs: isBlitz ? BLITZ_MS : undefined,
+        blackTimeMs: isBlitz ? BLITZ_MS : undefined,
+        turnStartTime: isBlitz ? Date.now() : undefined,
       };
       activeGames.set(gameId, game);
       socket.join(`game:${gameId}`);
@@ -88,6 +98,8 @@ export function setupSocket(io: Server) {
         isSpectator: !playerColor,
         spectators: game.spectators,
         wagerAmount: game.wagerAmount,
+        whiteTimeMs: game.whiteTimeMs,
+        blackTimeMs: game.blackTimeMs,
       });
     });
 
@@ -100,8 +112,31 @@ export function setupSocket(io: Server) {
       if (!isWhite && !isBlack) return;
       if (!isValidMove(game.state, move)) { socket.emit('game:invalidMove'); return; }
 
+      // Blitz clock: deduct elapsed time for the player who just moved
+      if (game.whiteTimeMs !== undefined && game.blackTimeMs !== undefined && game.turnStartTime !== undefined) {
+        const elapsed = Date.now() - game.turnStartTime;
+        if (game.state.currentTurn === 'white') {
+          game.whiteTimeMs = Math.max(0, game.whiteTimeMs - elapsed);
+        } else {
+          game.blackTimeMs = Math.max(0, game.blackTimeMs - elapsed);
+        }
+        // Timeout check
+        if (game.whiteTimeMs <= 0) {
+          game.state = { ...game.state, result: 'black_wins' };
+        } else if (game.blackTimeMs <= 0) {
+          game.state = { ...game.state, result: 'white_wins' };
+        }
+        game.turnStartTime = Date.now();
+      }
+
+      if (game.state.result !== 'ongoing') {
+        io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
+        await endGame(io, game);
+        return;
+      }
+
       game.state = makeMove(game.state, move);
-      io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move });
+      io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
 
       // AI response
       if (game.state.result === 'ongoing' && (game.aiDifficulty || game.bossId)) {

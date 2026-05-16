@@ -1,12 +1,25 @@
 import { Router, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import prisma from '../prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+// Public: list bosses with progress if authenticated
+router.get('/', async (req: AuthRequest, res: Response) => {
   const bosses = await prisma.boss.findMany({ orderBy: { id: 'asc' } });
-  const progress = await prisma.bossProgress.findMany({ where: { userId: req.userId! } });
+  const SECRET = process.env.JWT_SECRET || 'damka-secret-change-in-prod';
+  const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+  let userId: string | null = null;
+  if (token) {
+    try {
+      const payload = jwt.verify(token, SECRET) as { userId: string };
+      userId = payload.userId;
+    } catch {}
+  }
+  const progress = userId
+    ? await prisma.bossProgress.findMany({ where: { userId } })
+    : [];
   const progressMap = Object.fromEntries(progress.map(p => [p.bossId, p]));
   res.json(bosses.map(b => ({ ...b, progress: progressMap[b.id] || { beaten: false, attempts: 0 } })));
 });

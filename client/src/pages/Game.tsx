@@ -26,8 +26,11 @@ export default function Game() {
   const [isSpectator, setIsSpectator] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [whiteTimeMs, setWhiteTimeMs] = useState<number | null>(null);
+  const [blackTimeMs, setBlackTimeMs] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevPiecesRef = useRef<{ white: number; black: number } | null>(null);
+  const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const socket = getSocket();
 
@@ -35,7 +38,7 @@ export default function Game() {
     if (!id) return;
     socket.emit('game:requestState', { gameId: id, userId: user?.id });
 
-    socket.on('game:currentState', ({ state: s, whiteUsername, blackUsername, playerColor: pc, isSpectator: spec, spectators: specCount }) => {
+    socket.on('game:currentState', ({ state: s, whiteUsername, blackUsername, playerColor: pc, isSpectator: spec, spectators: specCount, whiteTimeMs: wtm, blackTimeMs: btm }) => {
       setState(s);
       setPlayerColor(pc || 'white');
       setIsSpectator(spec);
@@ -44,6 +47,7 @@ export default function Game() {
       const myName = user?.username;
       setOpponentName(myName === whiteUsername ? (blackUsername || 'Waiting...') : whiteUsername);
       if (!blackUsername && !spec) setShareLink(window.location.origin + `/game/${id}`);
+      if (wtm !== undefined) { setWhiteTimeMs(wtm); setBlackTimeMs(btm); }
     });
 
     socket.on('game:started', ({ state: s, whiteUsername, blackUsername }) => {
@@ -56,7 +60,8 @@ export default function Game() {
 
     socket.on('game:notFound', () => nav('/play'));
 
-    socket.on('game:stateUpdate', ({ state: s, lastMove: lm }) => {
+    socket.on('game:stateUpdate', ({ state: s, lastMove: lm, whiteTimeMs: wtm, blackTimeMs: btm }) => {
+      if (wtm !== undefined) { setWhiteTimeMs(wtm); setBlackTimeMs(btm); }
       const prev = prevPiecesRef.current;
       if (prev) {
         const whiteLost = prev.white > s.whitePieces;
@@ -113,6 +118,23 @@ export default function Game() {
       prevPiecesRef.current = { white: state.whitePieces, black: state.blackPieces };
     }
   }, []);
+
+  // Client-side clock countdown (smooth display between server updates)
+  useEffect(() => {
+    if (whiteTimeMs === null || !state || state.result !== 'ongoing') {
+      if (clockRef.current) clearInterval(clockRef.current);
+      return;
+    }
+    if (clockRef.current) clearInterval(clockRef.current);
+    clockRef.current = setInterval(() => {
+      if (state.currentTurn === 'white') {
+        setWhiteTimeMs(prev => (prev !== null ? Math.max(0, prev - 100) : null));
+      } else {
+        setBlackTimeMs(prev => (prev !== null ? Math.max(0, prev - 100) : null));
+      }
+    }, 100);
+    return () => { if (clockRef.current) clearInterval(clockRef.current); };
+  }, [state?.currentTurn, whiteTimeMs !== null]);
 
   const handleSquareClick = useCallback((row: number, col: number) => {
     if (!state || !user || state.result !== 'ongoing' || isSpectator) return;
@@ -175,9 +197,31 @@ export default function Game() {
     }
   }
 
+  function fmtTime(ms: number | null) {
+    if (ms === null) return '';
+    const s = Math.ceil(ms / 1000);
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return `${m}:${ss.toString().padStart(2, '0')}`;
+  }
+
   const isMyTurn = state?.currentTurn === playerColor && !isSpectator;
   const myPieces  = playerColor === 'white' ? state?.whitePieces : state?.blackPieces;
   const oppPieces = playerColor === 'white' ? state?.blackPieces : state?.whitePieces;
+
+  // Evaluation bar: score from -1 (black dominating) to +1 (white dominating)
+  function evalScore(s: GameState) {
+    const flat = s.board.flat();
+    const wKings = flat.filter(p => p?.color === 'white' && p?.type === 'king').length;
+    const bKings = flat.filter(p => p?.color === 'black' && p?.type === 'king').length;
+    const wScore = s.whitePieces + 0.5 * wKings;
+    const bScore = s.blackPieces + 0.5 * bKings;
+    const total = wScore + bScore;
+    return total === 0 ? 0 : (wScore - bScore) / total;
+  }
+  const evalVal = state ? evalScore(state) : 0; // -1..+1, positive = white ahead
+  // For the bar: white is at bottom. whitePercent = how much of bar is white.
+  const whiteBarPct = Math.round(((evalVal + 1) / 2) * 100); // 0..100, 50 = equal
 
   /* ---- Result screen ---- */
   if (result) {
@@ -284,6 +328,15 @@ export default function Game() {
               <span className="font-semibold text-ink text-sm">{opponentName}</span>
             </div>
             <div className="flex items-center gap-2">
+              {whiteTimeMs !== null && (
+                <span className={`font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded ${
+                  state?.currentTurn !== playerColor
+                    ? 'bg-accent/15 text-accent animate-pulse'
+                    : 'text-ink-muted'
+                }`}>
+                  {fmtTime(playerColor === 'white' ? blackTimeMs : whiteTimeMs)}
+                </span>
+              )}
               <div className="flex gap-0.5">
                 {Array.from({ length: oppPieces ?? 0 }).map((_, i) => (
                   <div key={i} className={`w-2 h-2 rounded-full ${playerColor === 'white' ? 'bg-[#2c2826]' : 'bg-[#e8d9b8]'}`} />
@@ -305,6 +358,15 @@ export default function Game() {
               <span className="font-semibold text-ink text-sm">{isSpectator ? 'Spectating' : (user?.username || 'You')}</span>
             </div>
             <div className="flex items-center gap-2">
+              {whiteTimeMs !== null && (
+                <span className={`font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded ${
+                  isMyTurn
+                    ? 'bg-accent/15 text-accent animate-pulse'
+                    : 'text-ink-muted'
+                }`}>
+                  {fmtTime(playerColor === 'white' ? whiteTimeMs : blackTimeMs)}
+                </span>
+              )}
               {isMyTurn && state.result === 'ongoing' && (
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -366,25 +428,36 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Piece balance bar */}
+          {/* Evaluation Bar */}
           <div className="card-sm">
-            <p className="section-title">Material</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-ink-muted w-4">{myPieces}</span>
-                <div className="flex-1 h-2 bg-surface-base rounded-full overflow-hidden">
-                  <div className="h-full bg-accent rounded-full transition-all duration-500"
-                    style={{ width: `${myProgress}%` }} />
-                </div>
-                <span className="text-ink-faint w-4 text-right">You</span>
+            <p className="section-title mb-2">Position</p>
+            <div className="flex gap-3 items-stretch">
+              {/* Vertical bar */}
+              <div className="flex flex-col w-5 rounded overflow-hidden border border-surface-border" style={{ height: 120 }}>
+                {/* Black (top) */}
+                <div
+                  className="transition-all duration-700"
+                  style={{ height: `${100 - whiteBarPct}%`, background: '#2c2826' }}
+                />
+                {/* White (bottom) */}
+                <div
+                  className="transition-all duration-700"
+                  style={{ height: `${whiteBarPct}%`, background: '#e8d9b8' }}
+                />
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-ink-muted w-4">{oppPieces}</span>
-                <div className="flex-1 h-2 bg-surface-base rounded-full overflow-hidden">
-                  <div className="h-full bg-surface-raised rounded-full transition-all duration-500"
-                    style={{ width: `${oppProgress}%` }} />
+              {/* Labels */}
+              <div className="flex flex-col justify-between text-xs py-0.5">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-[#2c2826] border border-[#5e564e]" />
+                  <span className="text-ink-faint">{oppPieces} pcs</span>
                 </div>
-                <span className="text-ink-faint text-right" style={{ width: '2rem' }}>Opp</span>
+                <div className="text-center text-ink-faint font-mono text-[10px]">
+                  {evalVal > 0.05 ? `+${(evalVal * 100).toFixed(0)}` : evalVal < -0.05 ? `${(evalVal * 100).toFixed(0)}` : '='}
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-[#e8d9b8] border border-[#b89050]" />
+                  <span className="text-ink-faint">{myPieces} pcs</span>
+                </div>
               </div>
             </div>
           </div>
