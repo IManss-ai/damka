@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../stores/auth';
 import { sfx } from '../lib/sounds';
@@ -121,6 +121,19 @@ export default function Game() {
     if (selected) {
       const target = legalMoves.find(m => m.to.row === row && m.to.col === col);
       if (target) {
+        // Optimistic update — move piece immediately, server confirms
+        const optimisticBoard = state.board.map((r: any[]) => r.map((p: any) => p ? { ...p } : null));
+        const movingPiece = optimisticBoard[target.from.row]?.[target.from.col];
+        if (movingPiece) {
+          optimisticBoard[target.from.row][target.from.col] = null;
+          movingPiece.row = target.to.row;
+          movingPiece.col = target.to.col;
+          optimisticBoard[target.to.row][target.to.col] = movingPiece;
+          for (const cap of target.captures) optimisticBoard[cap.row][cap.col] = null;
+          setState(s => s ? { ...s, board: optimisticBoard } : s);
+          setLastMove({ from: target.from, to: target.to });
+        }
+        sfx.move();
         socket.emit('game:move', { gameId: id, move: target, userId: user.id });
         setSelected(null);
         setLegalMoves([]);
