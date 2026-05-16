@@ -12,7 +12,7 @@ router.get('/owned', authMiddleware, async (req: AuthRequest, res: Response) => 
 });
 
 router.post('/:id/buy', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const cosmetic = await prisma.cosmetic.findUnique({ where: { id: req.params.id } });
+  const cosmetic = await prisma.cosmetic.findUnique({ where: { id: req.params.id as string } });
   if (!cosmetic) { res.status(404).json({ error: 'Not found' }); return; }
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   if (!user || user.coins < cosmetic.price) { res.status(400).json({ error: 'Not enough coins' }); return; }

@@ -12,7 +12,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/:id/beaten', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const bossId = parseInt(req.params.id);
+  const bossId = parseInt(req.params.id as string);
   await prisma.bossProgress.upsert({
     where: { userId_bossId: { userId: req.userId!, bossId } },
     update: { beaten: true, beatenAt: new Date(), attempts: { increment: 1 } },
@@ -23,7 +23,7 @@ router.post('/:id/beaten', authMiddleware, async (req: AuthRequest, res: Respons
 });
 
 router.post('/:id/attempt', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const bossId = parseInt(req.params.id);
+  const bossId = parseInt(req.params.id as string);
   await prisma.bossProgress.upsert({
     where: { userId_bossId: { userId: req.userId!, bossId } },
     update: { attempts: { increment: 1 } },
