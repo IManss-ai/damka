@@ -235,11 +235,16 @@ export default function Game() {
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           className="card-glow"
         >
-          <div className="text-7xl mb-4">
-            {draw ? '🤝' : won ? '🏆' : '💀'}
-          </div>
-          <h2 className={`font-display text-3xl font-black mb-2 ${draw ? 'text-ink' : won ? 'gradient-text' : 'text-danger'}`}>
-            {draw ? 'Draw!' : won ? 'Victory!' : 'Defeated'}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 18, delay: 0.1 }}
+            className={`text-6xl font-black mb-3 font-display ${draw ? 'text-ink-muted' : won ? 'text-accent' : 'text-danger'}`}
+          >
+            {draw ? 'Draw' : won ? 'Victory' : 'Defeated'}
+          </motion.div>
+          <h2 className={`font-display text-xl font-semibold mb-2 ${draw ? 'text-ink-muted' : won ? 'text-ink' : 'text-ink-muted'}`}>
+            {draw ? 'Both held even.' : won ? 'Well played.' : 'Better luck next time.'}
           </h2>
           <p className="text-ink-muted italic mb-2 text-sm leading-relaxed max-w-xs mx-auto">"{result.story}"</p>
 
@@ -247,14 +252,14 @@ export default function Game() {
           <div className="mt-6 mb-6">
             {!aiAnalysis && !aiLoading && (
               <button onClick={fetchAiAnalysis} className="btn-primary w-full">
-                🤖 Analyze with AI Coach
+                AI Coach Analysis
               </button>
             )}
             {aiLoading && (
               <div className="bg-surface-raised border border-border rounded-xl p-4 text-left">
                 <div className="flex items-center gap-3 text-accent">
                   <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm font-medium">AI Coach is analyzing your game...</span>
+                  <span className="text-sm font-medium">Analyzing your game...</span>
                 </div>
               </div>
             )}
@@ -265,7 +270,6 @@ export default function Game() {
                 className="bg-surface-raised border border-accent/30 rounded-xl p-4 text-left"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">🤖</span>
                   <span className="text-xs font-bold text-accent uppercase tracking-widest">AI Coach Analysis</span>
                 </div>
                 <p className="text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">{aiAnalysis}</p>
@@ -290,7 +294,7 @@ export default function Game() {
         animate={{ opacity: 1, y: 0 }}
         className="card-glow"
       >
-        <div className="text-4xl mb-4 animate-float inline-block">⚔️</div>
+        <div className="text-lg font-black text-ink-muted mb-4 uppercase tracking-widest">Waiting</div>
         <h2 className="font-display text-xl font-black text-ink mb-2">Waiting for opponent</h2>
         <p className="text-ink-muted text-sm mb-4">Share this link with your friend:</p>
         <div className="bg-surface-nav border border-border rounded-xl p-3 text-xs font-mono break-all mb-4 text-ink-muted select-all">{shareLink}</div>
@@ -318,7 +322,7 @@ export default function Game() {
       <div className="flex gap-6 items-start justify-center">
 
         {/* Board column */}
-        <div>
+        <div className="animate-board-entrance">
           {/* Opponent bar */}
           <div className="flex items-center justify-between mb-2 bg-surface-card border border-border rounded-xl px-4 py-2.5 gap-3">
             <div className="flex items-center gap-2.5">
@@ -390,7 +394,7 @@ export default function Game() {
         <div className="w-52 space-y-3 shrink-0">
           {spectators > 0 && (
             <div className="card-sm text-center text-xs text-ink-muted">
-              👁 {spectators} watching
+              {spectators} watching
             </div>
           )}
 
@@ -402,7 +406,7 @@ export default function Game() {
                 ? 'bg-accent/15 text-accent border border-accent/25'
                 : 'bg-surface-raised text-ink-muted border border-border'
             }`}>
-              {state.currentTurn === playerColor ? '⚡ Your turn' : `⏳ ${opponentName}'s turn`}
+              {state.currentTurn === playerColor ? 'Your turn' : `${opponentName}'s turn`}
             </div>
           </div>
 

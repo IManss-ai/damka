@@ -152,7 +152,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
                 {/* Move dot */}
                 {isDark && isTarget && !hasPiece && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="w-4 h-4 rounded-full bg-black/30" />
+                    <div className="w-[18px] h-[18px] rounded-full bg-black/35 animate-pulse" />
                   </div>
                 )}
                 {isDark && isTarget && hasPiece && (
