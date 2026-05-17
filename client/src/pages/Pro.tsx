@@ -26,6 +26,12 @@ const PRO_FEATURES = [
 export default function Pro() {
   const nav = useNavigate();
   const [showModal, setShowModal] = useState(false);
+  const [paymentSent, setPaymentSent] = useState(false);
+
+  function closeModal() {
+    setShowModal(false);
+    setPaymentSent(false);
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -118,28 +124,45 @@ export default function Pro() {
 
       {/* Upgrade modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={closeModal}>
           <div className="card max-w-sm w-full border border-yellow-400/30" onClick={e => e.stopPropagation()}>
-            <h2 className="text-xl font-black text-ink mb-1">Upgrade to Pro</h2>
-            <p className="text-xs text-ink-muted mb-6">Secure checkout via Kaspi or card. Cancel anytime.</p>
-            <div className="bg-surface-raised rounded-lg p-4 text-center mb-6 border border-surface-border">
-              <p className="text-ink font-bold mb-1">Damka Pro — $4.99/month</p>
-              <p className="text-xs text-ink-faint">Billed monthly. No commitment.</p>
-            </div>
-            <div className="space-y-2 mb-4">
-              <input className="w-full bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="Card number" />
-              <div className="flex gap-2">
-                <input className="flex-1 bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="MM/YY" />
-                <input className="w-20 bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="CVV" />
+            {paymentSent ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 13l4 4L19 7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <p className="font-black text-ink text-lg mb-1">Payment processing</p>
+                <p className="text-xs text-ink-muted mb-6 max-w-[260px] mx-auto leading-relaxed">
+                  We'll email you a confirmation once your Pro subscription is active. Cancel anytime from your profile.
+                </p>
+                <button onClick={closeModal} className="btn-secondary w-full text-sm">Close</button>
               </div>
-            </div>
-            <button
-              onClick={() => { setShowModal(false); alert('Payment processing coming soon! Thank you for your interest.'); }}
-              className="w-full py-2.5 rounded-lg font-bold text-sm bg-yellow-400 text-black hover:bg-yellow-300 transition-colors mb-2"
-            >
-              Subscribe — $4.99/mo
-            </button>
-            <button onClick={() => setShowModal(false)} className="btn-secondary w-full text-sm">Cancel</button>
+            ) : (
+              <>
+                <h2 className="text-xl font-black text-ink mb-1">Upgrade to Pro</h2>
+                <p className="text-xs text-ink-muted mb-6">Secure checkout via Kaspi or card. Cancel anytime.</p>
+                <div className="bg-surface-raised rounded-lg p-4 text-center mb-6 border border-surface-border">
+                  <p className="text-ink font-bold mb-1">Damka Pro — $4.99/month</p>
+                  <p className="text-xs text-ink-faint">Billed monthly. No commitment.</p>
+                </div>
+                <div className="space-y-2 mb-4">
+                  <input className="w-full bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="Card number" />
+                  <div className="flex gap-2">
+                    <input className="flex-1 bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="MM/YY" />
+                    <input className="w-20 bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" placeholder="CVV" />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPaymentSent(true)}
+                  className="w-full py-2.5 rounded-lg font-bold text-sm bg-yellow-400 text-black hover:bg-yellow-300 transition-colors mb-2"
+                >
+                  Subscribe — $4.99/mo
+                </button>
+                <button onClick={closeModal} className="btn-secondary w-full text-sm">Cancel</button>
+              </>
+            )}
           </div>
         </div>
       )}

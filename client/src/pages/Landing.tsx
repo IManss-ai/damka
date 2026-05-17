@@ -5,8 +5,9 @@ import { getSocket } from '../lib/socket';
 import { api } from '../lib/api';
 
 // Static board preview for hero — mid-game position
-const PREVIEW_BOARD = (() => {
-  const b: (null | { color: 'w' | 'b'; king?: boolean })[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+type PreviewPiece = { color: 'w' | 'b'; king?: boolean };
+const INITIAL_BOARD: (PreviewPiece | null)[][] = (() => {
+  const b: (PreviewPiece | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
   const wp = [[5,0],[5,2],[5,4],[5,6],[6,1],[6,3],[6,5],[6,7],[7,0],[7,2],[7,4]];
   const bp = [[0,1],[0,3],[0,5],[0,7],[1,0],[1,2],[2,5],[3,2],[3,6],[4,1]];
   wp.forEach(([r,c]) => { b[r][c] = { color: 'w' }; });
@@ -16,8 +17,37 @@ const PREVIEW_BOARD = (() => {
   return b;
 })();
 
+// Plausible follow-up moves to cycle through — each (from,to) on dark squares
+const PREVIEW_MOVES: { from: [number, number]; to: [number, number] }[] = [
+  { from: [5, 0], to: [4, 1] },
+  { from: [4, 1], to: [3, 0] },
+  { from: [6, 5], to: [5, 4] },
+  { from: [3, 2], to: [4, 1] },
+];
+
 function MiniBoard() {
   const SQ = 44;
+  const [board, setBoard] = useState(INITIAL_BOARD);
+  const [moveIdx, setMoveIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMoveIdx(i => (i + 1) % PREVIEW_MOVES.length);
+    }, 2800);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    // Reset board, then apply move
+    const next: (PreviewPiece | null)[][] = INITIAL_BOARD.map(row => row.slice());
+    const mv = PREVIEW_MOVES[moveIdx];
+    const piece = next[mv.from[0]][mv.from[1]];
+    if (piece) {
+      next[mv.from[0]][mv.from[1]] = null;
+      next[mv.to[0]][mv.to[1]] = piece;
+    }
+    setBoard(next);
+  }, [moveIdx]);
   return (
     <div className="rounded-xl overflow-hidden shadow-2xl" style={{
       width: SQ * 8, height: SQ * 8,
@@ -27,7 +57,7 @@ function MiniBoard() {
         <div key={row} className="flex">
           {[0,1,2,3,4,5,6,7].map(col => {
             const dark = (row + col) % 2 === 1;
-            const p = PREVIEW_BOARD[row][col];
+            const p = board[row][col];
             return (
               <div key={col} style={{
                 width: SQ, height: SQ, flexShrink: 0,
@@ -45,6 +75,7 @@ function MiniBoard() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 14, color: p.color === 'w' ? '#8B6914' : '#d4a820',
                     fontFamily: 'serif',
+                    transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1)',
                   }}>
                     {p.king ? '♛' : ''}
                   </div>

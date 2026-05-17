@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 
 const TIER_COLORS: Record<string, string> = {
@@ -59,6 +59,19 @@ export default function Profile() {
           <p className="text-xs text-ink-muted mt-1">Day Streak</p>
         </div>
       </div>
+
+      {/* Empty state CTA — only when zero games played */}
+      {profile.gamesPlayed === 0 && (
+        <div className="card border border-accent/30 bg-accent/5 mt-6 text-center">
+          <h2 className="text-base font-black text-ink mb-1">No games yet</h2>
+          <p className="text-xs text-ink-muted mb-4 max-w-xs mx-auto">
+            Your profile fills up as you play. Start with Practice mode against the AI — no stakes, just learning.
+          </p>
+          <Link to="/play" className="btn-primary text-sm inline-block">
+            Play your first game
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

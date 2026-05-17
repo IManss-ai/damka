@@ -58,7 +58,7 @@ export default function Bosses() {
                     <span className="text-xs text-ink-faint">{boss.progress.attempts} attempt{boss.progress.attempts !== 1 ? 's' : ''}</span>
                   )}
                 </div>
-                <p className="text-xs text-ink-muted mt-0.5 truncate">{boss.description}</p>
+                <p className="text-xs text-ink-muted mt-0.5 line-clamp-2">{boss.description}</p>
                 <p className="text-xs text-ink-faint mt-0.5">Reward: <span className="text-coin font-medium">{boss.rewardName}</span></p>
               </div>
 

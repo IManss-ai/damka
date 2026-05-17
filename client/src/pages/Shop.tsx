@@ -12,6 +12,34 @@ const RARITY_BADGE: Record<string, string> = {
 
 const TYPE_LABEL: Record<string, string> = { board: 'Board', piece: 'Piece Set', fx: 'Effect' };
 
+function ShopPreview({ cosmetic }: { cosmetic: { type: string; cssClass: string } }) {
+  if (cosmetic.type === 'board') {
+    return (
+      <div className={`board-thumb ${cosmetic.cssClass}`}>
+        {Array.from({ length: 16 }).map((_, i) => {
+          const r = Math.floor(i / 4);
+          const c = i % 4;
+          return <div key={i} className={(r + c) % 2 === 1 ? 'sq-dark' : 'sq-light'} />;
+        })}
+      </div>
+    );
+  }
+  if (cosmetic.type === 'piece') {
+    return (
+      <div className="flex gap-3 items-center justify-center" style={{ width: 88, height: 88 }}>
+        <span className={`piece-thumb ${cosmetic.cssClass}`} />
+        <span
+          className={`piece-thumb ${cosmetic.cssClass} flex items-center justify-center`}
+          style={{ boxShadow: '0 0 14px rgba(255,200,80,0.5)' }}
+        >
+          <span style={{ color: '#8b6914', fontFamily: 'serif', fontSize: 18, lineHeight: 1 }}>♛</span>
+        </span>
+      </div>
+    );
+  }
+  return <div className={`fx-thumb ${cosmetic.cssClass}`} />;
+}
+
 export default function Shop() {
   const { user, setUser } = useAuth();
   const nav = useNavigate();
@@ -70,7 +98,10 @@ export default function Shop() {
             <p className="section-title mb-3">{TYPE_LABEL[group] || group}</p>
             <div className="grid grid-cols-2 gap-3">
               {items.map(c => (
-                <div key={c.id} className="card border border-surface-border flex flex-col gap-2">
+                <div key={c.id} className="card border border-surface-border flex flex-col gap-3">
+                  <div className="flex justify-center pt-1">
+                    <ShopPreview cosmetic={c} />
+                  </div>
                   <div className="flex items-start justify-between">
                     <h3 className="font-bold text-ink text-sm">{c.name}</h3>
                     <span className={`text-xs font-semibold capitalize ${RARITY_BADGE[c.rarity]}`}>{c.rarity}</span>

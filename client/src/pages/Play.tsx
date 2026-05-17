@@ -4,6 +4,45 @@ import { motion } from 'framer-motion';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../stores/auth';
 
+const Icons = {
+  target: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    </svg>
+  ),
+  link: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+      <path d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+    </svg>
+  ),
+  trophy: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M8 21h8" /><path d="M12 17v4" />
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+      <path d="M7 6H5a2 2 0 0 0 0 4h2" /><path d="M17 6h2a2 2 0 0 1 0 4h-2" />
+    </svg>
+  ),
+  bolt: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+    </svg>
+  ),
+  dots: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+      <circle cx="6" cy="6" r="1.6" /><circle cx="18" cy="6" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" /><circle cx="6" cy="18" r="1.6" />
+      <circle cx="18" cy="18" r="1.6" /><circle cx="20" cy="11" r="1.6" />
+    </svg>
+  ),
+  bracket: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M4 5v6a2 2 0 0 0 2 2h4" /><path d="M4 19v-6a2 2 0 0 1 2-2h4" />
+      <path d="M20 12h-6" /><path d="M14 12h-4" />
+    </svg>
+  ),
+};
+
 const MODES = [
   {
     id: 'vsAI',
@@ -11,6 +50,8 @@ const MODES = [
     sub: 'vs Computer',
     desc: 'Play against AI at your chosen difficulty. No stakes, just improvement.',
     badge: null,
+    icon: Icons.target,
+    disabled: false,
   },
   {
     id: 'multiplayer',
@@ -18,6 +59,8 @@ const MODES = [
     sub: 'vs Friend',
     desc: 'Send a link. Your opponent joins instantly. No account needed on their end.',
     badge: 'Popular',
+    icon: Icons.link,
+    disabled: false,
   },
   {
     id: 'ranked',
@@ -25,6 +68,8 @@ const MODES = [
     sub: 'Earn ELO',
     desc: 'Win to climb the global leaderboard and earn points for your city.',
     badge: 'Competitive',
+    icon: Icons.trophy,
+    disabled: false,
   },
   {
     id: 'blitz',
@@ -32,6 +77,8 @@ const MODES = [
     sub: '3-min clock',
     desc: 'Each player has 3 minutes total. Clock runs on your turn. Run out of time — you lose.',
     badge: 'New',
+    icon: Icons.bolt,
+    disabled: false,
   },
   {
     id: 'chaos',
@@ -39,6 +86,17 @@ const MODES = [
     sub: 'Random board',
     desc: 'Scrambled starting position. Pure tactics, no memorized openings.',
     badge: null,
+    icon: Icons.dots,
+    disabled: false,
+  },
+  {
+    id: 'tournament',
+    title: 'Tournament',
+    sub: 'Weekly bracket',
+    desc: 'Compete in the weekly KZ bracket. Top 8 finishers split the coin pool.',
+    badge: 'Soon',
+    icon: Icons.bracket,
+    disabled: true,
   },
 ];
 
@@ -77,23 +135,31 @@ export default function Play() {
           {MODES.map((m) => (
             <button
               key={m.id}
-              onClick={() => setSelected(m.id)}
+              onClick={() => !m.disabled && setSelected(m.id)}
+              disabled={m.disabled}
               className={`relative text-left p-5 rounded-xl border transition-all duration-150 ${
-                selected === m.id
+                m.disabled
+                  ? 'border-border bg-surface-card opacity-50 cursor-not-allowed'
+                  : selected === m.id
                   ? 'border-accent bg-accent/6 shadow-[0_0_0_1px] shadow-accent'
                   : 'border-border bg-surface-card hover:border-border hover:bg-surface-raised'
               }`}
             >
-              {m.badge && (
-                <span className="absolute top-3 right-3 text-[10px] font-bold text-accent border border-accent/30 px-2 py-0.5 rounded-full">
-                  {m.badge}
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                {m.badge && (
+                  <span className="text-[10px] font-bold text-accent border border-accent/30 px-2 py-0.5 rounded-full">
+                    {m.badge}
+                  </span>
+                )}
+                <span className={`${selected === m.id ? 'text-accent' : 'text-ink-faint'}`}>
+                  {m.icon}
                 </span>
-              )}
+              </div>
               <div className={`text-xs font-bold uppercase tracking-widest mb-1 ${selected === m.id ? 'text-accent' : 'text-ink-faint'}`}>
                 {m.sub}
               </div>
               <div className="font-bold text-ink text-base">{m.title}</div>
-              <div className="text-xs text-ink-muted mt-1.5 leading-relaxed">{m.desc}</div>
+              <div className="text-xs text-ink-muted mt-1.5 leading-relaxed pr-2">{m.desc}</div>
             </button>
           ))}
         </div>

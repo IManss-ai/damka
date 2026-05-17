@@ -13,27 +13,31 @@ import Pro from './pages/Pro';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 
 export default function App() {
   const { fetchMe } = useAuth();
   useEffect(() => { fetchMe(); }, []);
   return (
-    <div className="min-h-screen bg-surface-base text-ink">
+    <div className="min-h-screen bg-surface-base text-ink flex flex-col">
       <Navbar />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/play" element={<Play />} />
-        <Route path="/game/:id" element={<Game />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/bosses" element={<Bosses />} />
-        <Route path="/puzzle" element={<Puzzle />} />
-        <Route path="/profile/:username" element={<Profile />} />
-        <Route path="/shop" element={<Shop />} />
-        <Route path="/pro" element={<Pro />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <div className="flex-1">
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/play" element={<Play />} />
+          <Route path="/game/:id" element={<Game />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/bosses" element={<Bosses />} />
+          <Route path="/puzzle" element={<Puzzle />} />
+          <Route path="/profile/:username" element={<Profile />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/pro" element={<Pro />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
+      <Footer />
     </div>
   );
 }
