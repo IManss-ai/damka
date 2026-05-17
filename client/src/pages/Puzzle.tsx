@@ -6,29 +6,84 @@ import { useT } from '../lib/i18n';
 export default function Puzzle() {
   const [puzzle, setPuzzle] = useState<any>(null);
   const [ranking, setRanking] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any>(null);
-  const [legalMoves] = useState<any[]>([]);
+  const [puzzleBoard, setPuzzleBoard] = useState<any[][]>([]);
+  const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
+  const [legalMoves, setLegalMoves] = useState<any[]>([]);
+  const [solved, setSolved] = useState(false);
+  const [solveMsg, setSolveMsg] = useState('');
+  const [lastMove, setLastMove] = useState<any>(null);
   const t = useT();
 
   useEffect(() => {
     api.puzzles.daily()
-      .then(p => { setPuzzle(p); api.puzzles.ranking(p.id).then(setRanking).catch(() => {}); })
+      .then(p => {
+        setPuzzle(p);
+        const parsed = typeof p.boardState === 'string' ? JSON.parse(p.boardState) : p.boardState;
+        setPuzzleBoard(parsed.board ?? parsed);
+        api.puzzles.ranking(p.id).then(setRanking).catch(() => {});
+      })
       .catch(() => {});
   }, []);
 
-  if (!puzzle) return <div className="text-center py-20 text-ink-muted text-sm">{t('puzzle.loading')}</div>;
+  function handleSquareClick(r: number, c: number) {
+    if (!puzzle || solved) return;
+    const solution: any[] = typeof puzzle.solution === 'string' ? JSON.parse(puzzle.solution) : puzzle.solution;
 
-  const parsed = typeof puzzle.boardState === 'string' ? JSON.parse(puzzle.boardState) : puzzle.boardState;
-  const board = parsed.board ?? parsed;
+    if (selected) {
+      const targetMove = legalMoves.find(m => m.to.row === r && m.to.col === c);
+      if (targetMove) {
+        const newBoard = puzzleBoard.map(row => row.map((p: any) => (p ? { ...p } : null)));
+        const piece = newBoard[targetMove.from.row]?.[targetMove.from.col];
+        if (piece) {
+          newBoard[targetMove.from.row][targetMove.from.col] = null;
+          piece.row = targetMove.to.row;
+          piece.col = targetMove.to.col;
+          newBoard[targetMove.to.row][targetMove.to.col] = piece;
+          for (const cap of (targetMove.captures || [])) {
+            newBoard[cap.row][cap.col] = null;
+          }
+        }
+        setPuzzleBoard(newBoard);
+        setLastMove({ from: targetMove.from, to: targetMove.to });
+        setSelected(null);
+        setLegalMoves([]);
+        setSolved(true);
+        setSolveMsg('Correct! Puzzle solved!');
+        api.puzzles.solve(puzzle.id, { moves: 1, timeSeconds: 0 }).catch(() => {});
+        return;
+      }
+    }
+
+    const piece = puzzleBoard[r]?.[c];
+    if (piece && piece.color === 'white') {
+      const moves = solution.filter((m: any) => m.from.row === r && m.from.col === c);
+      if (moves.length > 0) {
+        setSelected({ row: r, col: c });
+        setLegalMoves(moves);
+        return;
+      }
+    }
+
+    setSelected(null);
+    setLegalMoves([]);
+  }
+
+  if (!puzzle) return <div className="text-center py-20 text-ink-muted text-sm">{t('puzzle.loading')}</div>;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-black text-ink mb-1">{t('puzzle.title')}</h1>
       <p className="text-ink-muted text-sm mb-8">{t('puzzle.subtitle')}</p>
 
+      {solveMsg && (
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 text-accent text-sm mb-4 font-semibold">
+          {solveMsg}
+        </div>
+      )}
+
       <div className="flex gap-8 items-start flex-wrap">
-        <Board board={board} selectedPiece={selected} legalMoves={legalMoves}
-          onSquareClick={(r,c) => setSelected({ row: r, col: c })} playerColor="white" />
+        <Board board={puzzleBoard} selectedPiece={selected} legalMoves={legalMoves}
+          onSquareClick={handleSquareClick} playerColor="white" lastMove={lastMove} />
 
         <div className="flex-1 min-w-[180px] space-y-4">
           <div className="card-sm">
