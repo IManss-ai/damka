@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSocket } from '../lib/socket';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 
 // Static board preview for hero — mid-game position
 type PreviewPiece = { color: 'w' | 'b'; king?: boolean };
@@ -93,6 +94,7 @@ export default function Landing() {
   const [liveGames, setLiveGames] = useState<any[]>([]);
   const [cityScores, setCityScores] = useState<any[]>([]);
   const [playerCount, setPlayerCount] = useState(15);
+  const t = useT();
 
   useEffect(() => {
     const socket = getSocket();
@@ -118,38 +120,38 @@ export default function Landing() {
             </div>
 
             <h1 className="font-display text-6xl font-black text-ink mb-4 leading-none tracking-tight">
-              Competitive<br />
-              <span style={{ color: '#7fa650' }}>Checkers.</span>
+              {t('landing.hero').split('\n')[0]}<br />
+              <span style={{ color: '#7fa650' }}>{t('landing.hero').split('\n')[1]}</span>
             </h1>
 
             <p className="text-ink-muted text-lg mb-3 leading-relaxed">
-              Russian шашки with real stakes — ELO rankings, city rivalries, AI coaching, and a boss campaign.
+              {t('landing.subtitle')}
             </p>
             <p className="text-ink-faint text-sm mb-10">
-              Built for Kazakhstan. Open to the world.
+              {t('landing.builtFor')}
             </p>
 
             <div className="flex gap-3">
-              <Link to="/register" className="btn-primary px-8 py-3 text-base">Play Free</Link>
-              <Link to="/leaderboard" className="btn-secondary px-6 py-3">See Rankings</Link>
+              <Link to="/register" className="btn-primary px-8 py-3 text-base">{t('landing.playFree')}</Link>
+              <Link to="/leaderboard" className="btn-secondary px-6 py-3">{t('landing.seeRankings')}</Link>
             </div>
 
             <div className="flex gap-6 mt-10 pt-8 border-t border-border">
               <div>
                 <div className="text-2xl font-black text-ink">{playerCount}+</div>
-                <div className="text-xs text-ink-faint mt-0.5">Ranked players</div>
+                <div className="text-xs text-ink-faint mt-0.5">{t('landing.players')}</div>
               </div>
               <div>
                 <div className="text-2xl font-black text-ink">5</div>
-                <div className="text-xs text-ink-faint mt-0.5">AI bosses</div>
+                <div className="text-xs text-ink-faint mt-0.5">{t('landing.bosses')}</div>
               </div>
               <div>
                 <div className="text-2xl font-black text-ink">7</div>
-                <div className="text-xs text-ink-faint mt-0.5">Cities competing</div>
+                <div className="text-xs text-ink-faint mt-0.5">{t('landing.cities')}</div>
               </div>
               <div>
-                <div className="text-2xl font-black text-accent">Live</div>
-                <div className="text-xs text-ink-faint mt-0.5">Multiplayer</div>
+                <div className="text-2xl font-black text-accent">{t('landing.live')}</div>
+                <div className="text-xs text-ink-faint mt-0.5">{t('landing.multiplayer')}</div>
               </div>
             </div>
           </motion.div>
@@ -176,12 +178,12 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto flex items-center gap-6 overflow-x-auto text-xs text-ink-faint font-medium">
           <span className="flex items-center gap-1.5 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            <span className="text-ink-muted">{liveGames.length} live</span>
+            <span className="text-ink-muted">{liveGames.length} {t('landing.live').toLowerCase()}</span>
           </span>
           <span className="shrink-0">|</span>
-          <span className="shrink-0">{playerCount} ranked players</span>
+          <span className="shrink-0">{playerCount} {t('landing.players').toLowerCase()}</span>
           <span className="shrink-0">|</span>
-          <span className="shrink-0">Season 1 active</span>
+          <span className="shrink-0">{t('landing.season')}</span>
           {liveGames.slice(0, 2).map((g: any) => (
             <Link key={g.id} to={`/game/${g.id}`} className="shrink-0 hover:text-accent transition-colors font-mono">
               {g.whiteUsername} vs {g.blackUsername || '...'}
@@ -193,10 +195,10 @@ export default function Landing() {
       {/* City + Live side by side */}
       <div className="max-w-5xl mx-auto px-6 py-14 grid md:grid-cols-2 gap-6">
         <div>
-          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-4">City Rivalry — This Week</p>
+          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-4">{t('landing.cityRivalry')}</p>
           <div className="bg-surface-card border border-border rounded-xl overflow-hidden">
             {cityScores.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-ink-faint text-center">No scores yet.</p>
+              <p className="px-5 py-8 text-sm text-ink-faint text-center">{t('landing.noScores')}</p>
             ) : (
               <table className="w-full">
                 <tbody>
@@ -216,12 +218,12 @@ export default function Landing() {
         </div>
 
         <div>
-          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-4">Live Games</p>
+          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-4">{t('landing.liveGames')}</p>
           <div className="bg-surface-card border border-border rounded-xl overflow-hidden">
             {liveGames.length === 0 ? (
               <div className="px-5 py-10 text-center">
-                <p className="text-sm text-ink-faint mb-4">No games right now.</p>
-                <Link to="/play" className="btn-primary text-sm px-6 py-2">Start a game</Link>
+                <p className="text-sm text-ink-faint mb-4">{t('landing.noGames')}</p>
+                <Link to="/play" className="btn-primary text-sm px-6 py-2">{t('landing.startGame')}</Link>
               </div>
             ) : liveGames.map((g: any) => (
               <Link key={g.id} to={`/game/${g.id}`}
@@ -241,20 +243,20 @@ export default function Landing() {
       {/* Features — clean grid, no emojis */}
       <div className="border-t border-b border-border bg-surface-nav">
         <div className="max-w-5xl mx-auto px-6 py-16">
-          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-10 text-center">What makes this different</p>
+          <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-10 text-center">{t('landing.whatMakesDiff')}</p>
           <div className="grid md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
-            {[
-              { label: 'AI Coach', body: 'Claude analyzes every game. Tells you the exact move where you won or lost the position.' },
-              { label: 'Live Multiplayer', body: 'WebSocket-powered real-time games. Share a link, your opponent joins instantly.' },
-              { label: 'Boss Campaign', body: '5 bosses from 900 to 1800 ELO. Beat them all to unlock exclusive cosmetics.' },
-              { label: 'City Rivalries', body: 'Your ranked wins earn points for your city. Weekly leaderboard resets every Monday.' },
-              { label: 'ELO Ranking', body: 'Real rating system. Every ranked game moves your score. Climb or fall — no hiding.' },
-              { label: 'Daily Puzzle', body: 'One forced-capture tactic per day. Compete globally on solve speed.' },
-            ].map((f) => (
-              <div key={f.label} className="bg-surface-card px-6 py-8 hover:bg-surface-raised transition-colors group">
+            {([
+              { labelKey: 'landing.aiCoach', bodyKey: 'landing.aiCoachDesc' },
+              { labelKey: 'landing.liveMulti', bodyKey: 'landing.liveMultiDesc' },
+              { labelKey: 'landing.bossCampaign', bodyKey: 'landing.bossCampaignDesc' },
+              { labelKey: 'landing.cityRivalries', bodyKey: 'landing.cityRivalriesDesc' },
+              { labelKey: 'landing.eloRanking', bodyKey: 'landing.eloRankingDesc' },
+              { labelKey: 'landing.dailyPuzzle', bodyKey: 'landing.dailyPuzzleDesc' },
+            ] as const).map((f) => (
+              <div key={f.labelKey} className="bg-surface-card px-6 py-8 hover:bg-surface-raised transition-colors group">
                 <div className="w-8 h-0.5 bg-accent mb-4 group-hover:w-12 transition-all duration-200" />
-                <h3 className="font-bold text-ink text-sm mb-2">{f.label}</h3>
-                <p className="text-xs text-ink-muted leading-relaxed">{f.body}</p>
+                <h3 className="font-bold text-ink text-sm mb-2">{t(f.labelKey)}</h3>
+                <p className="text-xs text-ink-muted leading-relaxed">{t(f.bodyKey)}</p>
               </div>
             ))}
           </div>
@@ -264,10 +266,10 @@ export default function Landing() {
       {/* Final CTA */}
       <div className="max-w-5xl mx-auto px-6 py-20 text-center">
         <h2 className="font-display text-4xl font-black text-ink mb-3 leading-tight">
-          Your city needs you.
+          {t('landing.cityNeeds')}
         </h2>
-        <p className="text-ink-muted mb-8 text-base">Free account. 500 coins on signup. First season starts now.</p>
-        <Link to="/register" className="btn-primary px-14 py-3.5 text-base">Create Free Account</Link>
+        <p className="text-ink-muted mb-8 text-base">{t('landing.cityNeedsSubtitle')}</p>
+        <Link to="/register" className="btn-primary px-14 py-3.5 text-base">{t('landing.createAccount')}</Link>
       </div>
 
     </div>
