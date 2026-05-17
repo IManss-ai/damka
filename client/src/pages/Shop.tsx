@@ -60,9 +60,9 @@ export default function Shop() {
     if (user.coins < price) { setMsg(t('shop.notEnough')); return; }
     setBuying(id);
     try {
-      await api.cosmetics.buy(id);
+      const { coins } = await api.cosmetics.buy(id);
       setOwned(prev => new Set([...prev, id]));
-      setUser({ ...user, coins: user.coins - price });
+      setUser({ ...user, coins: coins ?? user.coins - price });
       setMsg(`Purchased ${name}!`);
     } catch (e: any) {
       setMsg(e.error || 'Purchase failed');

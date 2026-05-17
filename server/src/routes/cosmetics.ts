@@ -29,9 +29,9 @@ router.post('/:id/buy', authMiddleware, async (req: AuthRequest, res: Response) 
     if (!cosmetic) { res.status(404).json({ error: 'Not found' }); return; }
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user || user.coins < cosmetic.price) { res.status(400).json({ error: 'Not enough coins' }); return; }
-    await prisma.user.update({ where: { id: req.userId }, data: { coins: { decrement: cosmetic.price } } });
+    const updatedUser = await prisma.user.update({ where: { id: req.userId }, data: { coins: { decrement: cosmetic.price } } });
     await prisma.userCosmetic.create({ data: { userId: req.userId!, cosmeticId: cosmetic.id } });
-    res.json({ ok: true });
+    res.json({ ok: true, coins: updatedUser.coins });
   } catch (err) {
     console.error('[cosmetics/buy]', err);
     res.status(500).json({ error: 'Purchase failed' });
