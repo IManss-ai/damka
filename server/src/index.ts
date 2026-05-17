@@ -1,3 +1,11 @@
+// Keep the process alive on any unhandled error — log it, never crash.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';

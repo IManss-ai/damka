@@ -34,11 +34,17 @@ interface ActiveGame {
 
 const activeGames = new Map<string, ActiveGame>();
 
+// Wrap async socket handlers so an uncaught throw never escapes as an
+// unhandled rejection (which kills the process in Node 15+).
+function handle(fn: (...args: any[]) => Promise<void>) {
+  return (...args: any[]) => fn(...args).catch(err => console.error('[socket error]', err));
+}
+
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
 
     // Create a new game room
-    socket.on('game:create', async ({ userId, username, wagerAmount = 0, gameMode = 'casual', aiDifficulty, bossId }) => {
+    socket.on('game:create', handle(async ({ userId, username, wagerAmount = 0, gameMode = 'casual', aiDifficulty, bossId }) => {
       const gameId = uuidv4();
       const isBlitz = gameMode === 'blitz';
       const isPvP = !aiDifficulty && !bossId;
@@ -58,7 +64,6 @@ export function setupSocket(io: Server) {
       io.to('lobby').emit('lobby:gameCreated', { gameId, whiteUsername: username, gameMode, spectators: 0 });
 
       if (aiDifficulty || bossId) {
-        // vs AI — start immediately
         socket.emit('game:started', { gameId, state: game.state, color: 'white', opponentName: bossId ? `Boss #${bossId}` : `AI (${aiDifficulty})` });
       } else {
         // PvP — save pending game to DB so it survives server restarts
@@ -66,13 +71,15 @@ export function setupSocket(io: Server) {
           await prisma.game.create({
             data: { id: gameId, whitePlayerId: userId, result: 'pending', moves: '[]', gameMode, wagerAmount },
           });
-        } catch {}
+        } catch (err) {
+          console.error('[game:create] DB save failed (non-fatal):', err);
+        }
         socket.emit('game:created', { gameId, shareLink: `/game/${gameId}` });
       }
-    });
+    }));
 
     // Join existing game as second player
-    socket.on('game:join', async ({ gameId, userId, username }) => {
+    socket.on('game:join', handle(async ({ gameId, userId, username }) => {
       const game = activeGames.get(gameId);
       if (!game || game.blackPlayerId) { socket.emit('game:error', { message: 'Game not available' }); return; }
       game.blackPlayerId = userId;
@@ -80,7 +87,7 @@ export function setupSocket(io: Server) {
       socket.join(`game:${gameId}`);
       io.to(`game:${gameId}`).emit('game:started', { gameId, state: game.state, whiteUsername: game.whiteUsername, blackUsername: username });
       io.to('lobby').emit('lobby:gameUpdated', { gameId, status: 'active' });
-    });
+    }));
 
     // Spectate
     socket.on('game:spectate', ({ gameId }) => {
@@ -93,7 +100,7 @@ export function setupSocket(io: Server) {
     });
 
     // Client requests current game state (called when Game.tsx mounts)
-    socket.on('game:requestState', async ({ gameId, userId, username }: { gameId: string; userId?: string; username?: string }) => {
+    socket.on('game:requestState', handle(async ({ gameId, userId, username }: { gameId: string; userId?: string; username?: string }) => {
       let game = activeGames.get(gameId);
 
       // Server may have restarted — try to restore a pending PvP game from DB
@@ -124,7 +131,9 @@ export function setupSocket(io: Server) {
             activeGames.set(gameId, restored);
             game = restored;
           }
-        } catch {}
+        } catch (err) {
+          console.error('[game:requestState] DB restore failed:', err);
+        }
       }
 
       if (!game) { socket.emit('game:notFound'); return; }
@@ -135,11 +144,12 @@ export function setupSocket(io: Server) {
       if (!isAI && userId && username && !game.blackPlayerId && userId !== game.whitePlayerId) {
         game.blackPlayerId = userId;
         game.blackUsername = username;
-        // Update pending DB record to mark second player joined
         if (game.savedToDb) {
           try {
             await prisma.game.update({ where: { id: gameId }, data: { blackPlayerId: userId, result: 'ongoing' } });
-          } catch {}
+          } catch (err) {
+            console.error('[game:requestState] DB update failed (non-fatal):', err);
+          }
         }
         socket.emit('game:currentState', {
           state: game.state,
@@ -169,10 +179,10 @@ export function setupSocket(io: Server) {
         whiteTimeMs: game.whiteTimeMs,
         blackTimeMs: game.blackTimeMs,
       });
-    });
+    }));
 
     // Player makes a move
-    socket.on('game:move', async ({ gameId, move, userId }: { gameId: string; move: Move; userId: string }) => {
+    socket.on('game:move', handle(async ({ gameId, move, userId }: { gameId: string; move: Move; userId: string }) => {
       const game = activeGames.get(gameId);
       if (!game || game.state.result !== 'ongoing') return;
       const isWhite = game.whitePlayerId === userId && game.state.currentTurn === 'white';
@@ -188,7 +198,6 @@ export function setupSocket(io: Server) {
         } else {
           game.blackTimeMs = Math.max(0, game.blackTimeMs - elapsed);
         }
-        // Timeout check
         if (game.whiteTimeMs <= 0) {
           game.state = { ...game.state, result: 'black_wins' };
         } else if (game.blackTimeMs <= 0) {
@@ -206,45 +215,53 @@ export function setupSocket(io: Server) {
       game.state = makeMove(game.state, move);
       io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
 
-      // AI response — variable delay by difficulty for natural "thinking" pacing
+      // AI response — variable delay by difficulty
       if (game.state.result === 'ongoing' && (game.aiDifficulty || game.bossId)) {
-        // Tell the player the AI is thinking
         io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: true });
 
-        // Variable delay: weaker AI thinks shorter, stronger AI thinks longer
         const baseByDifficulty: Record<string, number> = { easy: 900, medium: 1200, hard: 1700 };
         const base = baseByDifficulty[game.aiDifficulty || 'medium'] ?? 1200;
-        const jitter = Math.floor(Math.random() * 400);  // 0-400ms variance
-        const delay = base + jitter;
+        const delay = base + Math.floor(Math.random() * 400);
 
-        setTimeout(async () => {
-          const aiMove = getBestMove(game.state.board, 'black', game.aiDifficulty || 'medium', game.bossId);
-          if (aiMove) {
-            game.state = makeMove(game.state, aiMove);
-            io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
-            io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: aiMove });
-          } else {
-            io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
-          }
-          if (game.state.result !== 'ongoing') await endGame(io, game);
+        setTimeout(() => {
+          Promise.resolve().then(async () => {
+            try {
+              const aiMove = getBestMove(game.state.board, 'black', game.aiDifficulty || 'medium', game.bossId);
+              if (aiMove) {
+                game.state = makeMove(game.state, aiMove);
+                io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
+                io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: aiMove });
+              } else {
+                io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
+              }
+              if (game.state.result !== 'ongoing') await endGame(io, game);
+            } catch (err) {
+              console.error('[AI move error]', err);
+              io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
+            }
+          });
         }, delay);
         return;
       }
 
       if (game.state.result !== 'ongoing') await endGame(io, game);
-    });
+    }));
 
     // Get legal moves for a piece
     socket.on('game:legalMoves', ({ gameId, row, col }) => {
-      const game = activeGames.get(gameId);
-      if (!game) return;
-      const all = getLegalMoves(game.state.board, game.state.currentTurn);
-      const forPiece = all.filter(m => m.from.row === row && m.from.col === col);
-      socket.emit('game:legalMovesResult', { moves: forPiece });
+      try {
+        const game = activeGames.get(gameId);
+        if (!game) return;
+        const all = getLegalMoves(game.state.board, game.state.currentTurn);
+        const forPiece = all.filter(m => m.from.row === row && m.from.col === col);
+        socket.emit('game:legalMovesResult', { moves: forPiece });
+      } catch (err) {
+        console.error('[game:legalMoves error]', err);
+      }
     });
 
     // Resign
-    socket.on('game:resign', async ({ gameId, userId }: { gameId: string; userId: string }) => {
+    socket.on('game:resign', handle(async ({ gameId, userId }: { gameId: string; userId: string }) => {
       const game = activeGames.get(gameId);
       if (!game || game.state.result !== 'ongoing') return;
       const isWhite = game.whitePlayerId === userId;
@@ -252,10 +269,10 @@ export function setupSocket(io: Server) {
       if (!isWhite && !isBlack) return;
       game.state.result = isWhite ? 'black_wins' : 'white_wins';
       await endGame(io, game);
-    });
+    }));
 
     // Add AI bot as second player (triggered from waiting screen)
-    socket.on('game:addBot', async ({ gameId, difficulty = 'medium' }: { gameId: string; difficulty?: 'easy' | 'medium' | 'hard' }) => {
+    socket.on('game:addBot', handle(async ({ gameId, difficulty = 'medium' }: { gameId: string; difficulty?: 'easy' | 'medium' | 'hard' }) => {
       const game = activeGames.get(gameId);
       if (!game || game.blackPlayerId || game.aiDifficulty || game.bossId) return;
       game.aiDifficulty = difficulty;
@@ -263,7 +280,9 @@ export function setupSocket(io: Server) {
       if (game.savedToDb) {
         try {
           await prisma.game.update({ where: { id: game.id }, data: { result: 'ongoing', aiDifficulty: difficulty } });
-        } catch {}
+        } catch (err) {
+          console.error('[game:addBot] DB update failed (non-fatal):', err);
+        }
       }
       io.to(`game:${gameId}`).emit('game:started', {
         gameId,
@@ -271,15 +290,19 @@ export function setupSocket(io: Server) {
         whiteUsername: game.whiteUsername,
         blackUsername: `AI (${difficulty})`,
       });
-    });
+    }));
 
     // Lobby: get active games
     socket.on('lobby:join', () => {
-      socket.join('lobby');
-      const games = Array.from(activeGames.values())
-        .filter(g => g.state.result === 'ongoing')
-        .map(g => ({ id: g.id, whiteUsername: g.whiteUsername, blackUsername: g.blackUsername, gameMode: g.gameMode, spectators: g.spectators }));
-      socket.emit('lobby:games', games);
+      try {
+        socket.join('lobby');
+        const games = Array.from(activeGames.values())
+          .filter(g => g.state.result === 'ongoing')
+          .map(g => ({ id: g.id, whiteUsername: g.whiteUsername, blackUsername: g.blackUsername, gameMode: g.gameMode, spectators: g.spectators }));
+        socket.emit('lobby:games', games);
+      } catch (err) {
+        console.error('[lobby:join error]', err);
+      }
     });
 
     socket.on('disconnect', () => {
@@ -291,65 +314,79 @@ export function setupSocket(io: Server) {
 }
 
 async function endGame(io: Server, game: ActiveGame) {
-  const duration = Math.floor((Date.now() - game.startTime) / 1000);
-  const winnerId = game.state.result === 'white_wins' ? game.whitePlayerId : game.state.result === 'black_wins' ? game.blackPlayerId : null;
-  const loserId = winnerId === game.whitePlayerId ? game.blackPlayerId : game.whitePlayerId;
+  try {
+    const duration = Math.floor((Date.now() - game.startTime) / 1000);
+    const winnerId = game.state.result === 'white_wins' ? game.whitePlayerId : game.state.result === 'black_wins' ? game.blackPlayerId : null;
+    const loserId = winnerId === game.whitePlayerId ? game.blackPlayerId : game.whitePlayerId;
 
-  const story = generateMatchStory(game.state, game.state.result === 'white_wins' ? 'white' : game.state.result === 'black_wins' ? 'black' : 'draw', game.whiteUsername, game.blackUsername || 'AI');
+    const story = generateMatchStory(game.state, game.state.result === 'white_wins' ? 'white' : game.state.result === 'black_wins' ? 'black' : 'draw', game.whiteUsername, game.blackUsername || 'AI');
 
-  // Compute game stats for the end-of-game screen
-  const totalMoves = game.state.moveHistory.length;
-  const totalCaptures = game.state.moveHistory.reduce(
-    (sum, m: any) => sum + (Array.isArray(m.captures) ? m.captures.length : 0),
-    0,
-  );
+    const totalMoves = game.state.moveHistory.length;
+    const totalCaptures = game.state.moveHistory.reduce(
+      (sum, m: any) => sum + (Array.isArray(m.captures) ? m.captures.length : 0),
+      0,
+    );
 
-  // Save game to DB — update existing record for PvP, create new for AI/boss
-  const gameData = { moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, matchStory: story };
-  if (game.savedToDb) {
-    await prisma.game.update({ where: { id: game.id }, data: { ...gameData, blackPlayerId: game.blackPlayerId ?? null } });
-  } else {
-    await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, ...gameData } });
-  }
-
-  // Update Elo and coins for PvP — track delta for end-game screen
-  let whiteEloDelta = 0;
-  let blackEloDelta = 0;
-  if (winnerId && loserId && game.blackPlayerId && !game.aiDifficulty && !game.bossId) {
-    const [winner, loser] = await Promise.all([prisma.user.findUnique({ where: { id: winnerId } }), prisma.user.findUnique({ where: { id: loserId } })]);
-    if (winner && loser) {
-      const elo = calculateElo(winner.eloRating, loser.eloRating);
-      const wDelta = elo.winner - winner.eloRating;
-      const lDelta = Math.max(800, elo.loser) - loser.eloRating;
-      if (winnerId === game.whitePlayerId) { whiteEloDelta = wDelta; blackEloDelta = lDelta; }
-      else { blackEloDelta = wDelta; whiteEloDelta = lDelta; }
-      await Promise.all([
-        prisma.user.update({ where: { id: winnerId }, data: { eloRating: elo.winner, coins: { increment: 50 + game.wagerAmount } } }),
-        prisma.user.update({ where: { id: loserId }, data: { eloRating: Math.max(800, elo.loser), coins: { decrement: game.wagerAmount } } }),
-        addCityPoints(winner.city, 3),
-        updateNemesis(winnerId, loserId),
-      ]);
+    // Save game to DB — update existing record for PvP, create new for AI/boss
+    const gameData = { moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, matchStory: story };
+    try {
+      if (game.savedToDb) {
+        await prisma.game.update({ where: { id: game.id }, data: { ...gameData, blackPlayerId: game.blackPlayerId ?? null } });
+      } else {
+        await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, ...gameData } });
+      }
+    } catch (err) {
+      console.error('[endGame] DB save failed (non-fatal):', err);
     }
-  }
 
-  // Boss beaten
-  if (game.bossId && game.state.result === 'white_wins') {
-    await prisma.bossProgress.upsert({ where: { userId_bossId: { userId: game.whitePlayerId, bossId: game.bossId } }, update: { beaten: true, beatenAt: new Date(), attempts: { increment: 1 } }, create: { userId: game.whitePlayerId, bossId: game.bossId, beaten: true, beatenAt: new Date(), attempts: 1 } });
-    await prisma.user.update({ where: { id: game.whitePlayerId }, data: { bossesBeaten: { increment: 1 }, coins: { increment: 150 } } });
-  }
+    // Update ELO and coins for PvP
+    let whiteEloDelta = 0;
+    let blackEloDelta = 0;
+    if (winnerId && loserId && game.blackPlayerId && !game.aiDifficulty && !game.bossId) {
+      try {
+        const [winner, loser] = await Promise.all([
+          prisma.user.findUnique({ where: { id: winnerId } }),
+          prisma.user.findUnique({ where: { id: loserId } }),
+        ]);
+        if (winner && loser) {
+          const elo = calculateElo(winner.eloRating, loser.eloRating);
+          const wDelta = elo.winner - winner.eloRating;
+          const lDelta = Math.max(800, elo.loser) - loser.eloRating;
+          if (winnerId === game.whitePlayerId) { whiteEloDelta = wDelta; blackEloDelta = lDelta; }
+          else { blackEloDelta = wDelta; whiteEloDelta = lDelta; }
+          await Promise.all([
+            prisma.user.update({ where: { id: winnerId }, data: { eloRating: elo.winner, coins: { increment: 50 + game.wagerAmount } } }),
+            prisma.user.update({ where: { id: loserId }, data: { eloRating: Math.max(800, elo.loser), coins: { decrement: game.wagerAmount } } }),
+            addCityPoints(winner.city, 3),
+            updateNemesis(winnerId, loserId),
+          ]);
+        }
+      } catch (err) {
+        console.error('[endGame] ELO update failed (non-fatal):', err);
+      }
+    }
 
-  io.to(`game:${game.id}`).emit('game:ended', {
-    result: game.state.result,
-    story,
-    gameId: game.id,
-    stats: {
-      moves: totalMoves,
-      captures: totalCaptures,
-      durationSec: duration,
-      whiteEloDelta,
-      blackEloDelta,
-    },
-  });
-  io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
-  activeGames.delete(game.id);
+    // Boss beaten
+    if (game.bossId && game.state.result === 'white_wins') {
+      try {
+        await prisma.bossProgress.upsert({ where: { userId_bossId: { userId: game.whitePlayerId, bossId: game.bossId } }, update: { beaten: true, beatenAt: new Date(), attempts: { increment: 1 } }, create: { userId: game.whitePlayerId, bossId: game.bossId, beaten: true, beatenAt: new Date(), attempts: 1 } });
+        await prisma.user.update({ where: { id: game.whitePlayerId }, data: { bossesBeaten: { increment: 1 }, coins: { increment: 150 } } });
+      } catch (err) {
+        console.error('[endGame] Boss progress update failed (non-fatal):', err);
+      }
+    }
+
+    io.to(`game:${game.id}`).emit('game:ended', {
+      result: game.state.result,
+      story,
+      gameId: game.id,
+      stats: { moves: totalMoves, captures: totalCaptures, durationSec: duration, whiteEloDelta, blackEloDelta },
+    });
+    io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
+    activeGames.delete(game.id);
+  } catch (err) {
+    console.error('[endGame] unexpected error:', err);
+    // Still clean up memory even if DB failed
+    activeGames.delete(game.id);
+  }
 }
