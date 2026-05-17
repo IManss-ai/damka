@@ -1,5 +1,44 @@
 let ctx: AudioContext | null = null;
 
+const STORAGE_KEY = 'damka.audio';
+
+interface AudioPrefs { muted: boolean; volume: number; }
+
+function readPrefs(): AudioPrefs {
+  if (typeof localStorage === 'undefined') return { muted: false, volume: 1 };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { muted: false, volume: 1 };
+    const parsed = JSON.parse(raw);
+    return {
+      muted: !!parsed.muted,
+      volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : 1,
+    };
+  } catch {
+    return { muted: false, volume: 1 };
+  }
+}
+
+let prefs: AudioPrefs = readPrefs();
+const listeners = new Set<(p: AudioPrefs) => void>();
+
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch {}
+  listeners.forEach(l => l(prefs));
+}
+
+export const audioPrefs = {
+  get(): AudioPrefs { return { ...prefs }; },
+  setMuted(m: boolean) { prefs = { ...prefs, muted: m }; persist(); },
+  setVolume(v: number) { prefs = { ...prefs, volume: Math.max(0, Math.min(1, v)) }; persist(); },
+  toggleMute() { prefs = { ...prefs, muted: !prefs.muted }; persist(); },
+  subscribe(fn: (p: AudioPrefs) => void) { listeners.add(fn); return () => listeners.delete(fn); },
+};
+
+function gainMult(): number {
+  return prefs.muted ? 0 : prefs.volume;
+}
+
 function getCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext();
   if (ctx.state === 'suspended') ctx.resume();
@@ -8,6 +47,8 @@ function getCtx(): AudioContext {
 
 // Wooden checker hitting the board: low-freq thud + brief click transient
 function woodClack(gain = 0.55) {
+  gain *= gainMult();
+  if (gain <= 0) return;
   const ac = getCtx();
   const now = ac.currentTime;
 
@@ -49,9 +90,9 @@ function woodClack(gain = 0.55) {
 
 // Double clack for captures (piece removed from board)
 function woodClackDouble(gain = 0.5) {
+  if (gainMult() <= 0) return;
   woodClack(gain);
-  const ac = getCtx();
-  const now = ac.currentTime;
+  const adjusted = gain * gainMult();
 
   // Second lighter tap (piece being taken off) — slightly higher pitch, softer
   setTimeout(() => {
@@ -64,7 +105,7 @@ function woodClackDouble(gain = 0.5) {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(300, n);
     osc.frequency.exponentialRampToValueAtTime(100, n + 0.045);
-    g.gain.setValueAtTime(gain * 0.4, n);
+    g.gain.setValueAtTime(adjusted * 0.4, n);
     g.gain.exponentialRampToValueAtTime(0.001, n + 0.05);
     osc.start(n);
     osc.stop(n + 0.05);
@@ -73,6 +114,8 @@ function woodClackDouble(gain = 0.5) {
 
 // Soft click for selection (piece picked up)
 function softClick(gain = 0.2) {
+  gain *= gainMult();
+  if (gain <= 0) return;
   const ac = getCtx();
   const now = ac.currentTime;
 
@@ -98,6 +141,8 @@ function softClick(gain = 0.2) {
 
 // Ascending tones for king promotion
 function chime(freqs: number[], duration: number, gain = 0.2) {
+  gain *= gainMult();
+  if (gain <= 0) return;
   const ac = getCtx();
   freqs.forEach((f, i) => {
     setTimeout(() => {

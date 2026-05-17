@@ -138,16 +138,28 @@ export function setupSocket(io: Server) {
       game.state = makeMove(game.state, move);
       io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
 
-      // AI response
+      // AI response — variable delay by difficulty for natural "thinking" pacing
       if (game.state.result === 'ongoing' && (game.aiDifficulty || game.bossId)) {
+        // Tell the player the AI is thinking
+        io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: true });
+
+        // Variable delay: weaker AI thinks shorter, stronger AI thinks longer
+        const baseByDifficulty: Record<string, number> = { easy: 900, medium: 1200, hard: 1700 };
+        const base = baseByDifficulty[game.aiDifficulty || 'medium'] ?? 1200;
+        const jitter = Math.floor(Math.random() * 400);  // 0-400ms variance
+        const delay = base + jitter;
+
         setTimeout(async () => {
           const aiMove = getBestMove(game.state.board, 'black', game.aiDifficulty || 'medium', game.bossId);
           if (aiMove) {
             game.state = makeMove(game.state, aiMove);
+            io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
             io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: aiMove });
+          } else {
+            io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
           }
           if (game.state.result !== 'ongoing') await endGame(io, game);
-        }, 600);
+        }, delay);
         return;
       }
 
@@ -198,14 +210,27 @@ async function endGame(io: Server, game: ActiveGame) {
 
   const story = generateMatchStory(game.state, game.state.result === 'white_wins' ? 'white' : game.state.result === 'black_wins' ? 'black' : 'draw', game.whiteUsername, game.blackUsername || 'AI');
 
-  // Save game to DB
-  const dbGame = await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, matchStory: story } });
+  // Compute game stats for the end-of-game screen
+  const totalMoves = game.state.moveHistory.length;
+  const totalCaptures = game.state.moveHistory.reduce(
+    (sum, m: any) => sum + (Array.isArray(m.captures) ? m.captures.length : 0),
+    0,
+  );
 
-  // Update Elo and coins for PvP
+  // Save game to DB
+  await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, matchStory: story } });
+
+  // Update Elo and coins for PvP — track delta for end-game screen
+  let whiteEloDelta = 0;
+  let blackEloDelta = 0;
   if (winnerId && loserId && game.blackPlayerId && !game.aiDifficulty && !game.bossId) {
     const [winner, loser] = await Promise.all([prisma.user.findUnique({ where: { id: winnerId } }), prisma.user.findUnique({ where: { id: loserId } })]);
     if (winner && loser) {
       const elo = calculateElo(winner.eloRating, loser.eloRating);
+      const wDelta = elo.winner - winner.eloRating;
+      const lDelta = Math.max(800, elo.loser) - loser.eloRating;
+      if (winnerId === game.whitePlayerId) { whiteEloDelta = wDelta; blackEloDelta = lDelta; }
+      else { blackEloDelta = wDelta; whiteEloDelta = lDelta; }
       await Promise.all([
         prisma.user.update({ where: { id: winnerId }, data: { eloRating: elo.winner, coins: { increment: 50 + game.wagerAmount } } }),
         prisma.user.update({ where: { id: loserId }, data: { eloRating: Math.max(800, elo.loser), coins: { decrement: game.wagerAmount } } }),
@@ -221,7 +246,18 @@ async function endGame(io: Server, game: ActiveGame) {
     await prisma.user.update({ where: { id: game.whitePlayerId }, data: { bossesBeaten: { increment: 1 }, coins: { increment: 150 } } });
   }
 
-  io.to(`game:${game.id}`).emit('game:ended', { result: game.state.result, story, gameId: game.id });
+  io.to(`game:${game.id}`).emit('game:ended', {
+    result: game.state.result,
+    story,
+    gameId: game.id,
+    stats: {
+      moves: totalMoves,
+      captures: totalCaptures,
+      durationSec: duration,
+      whiteEloDelta,
+      blackEloDelta,
+    },
+  });
   io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
   activeGames.delete(game.id);
 }
