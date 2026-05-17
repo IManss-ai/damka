@@ -1,104 +1,110 @@
-# Damka
+# Дамка
 
-Competitive Russian checkers platform. Real-time multiplayer, ELO rankings, AI coaching, city rivalries.
+Конкурентная платформа для игры в русские шашки. Мультиплеер в реальном времени, рейтинг ELO, ИИ-тренер, городское соперничество.
 
-**Live:** https://damka-a5p3.onrender.com
+**Сайт:** https://damka-a5p3.onrender.com  
 **GitHub:** https://github.com/IManss-ai/damka
 
 ---
 
-## What it is
+![Главная страница Дамки](screenshots/landing.png)
 
-Russian shashki (shashki) is the most played board game in Central Asia. There is no serious online platform for it. Damka is that platform.
+---
 
-This is not a checkers board. It is a competitive system built around the game — the same way chess.com is built around chess. The core thesis: if you give players ELO ratings, city rivalries, daily puzzles, a boss campaign, and coaching after every loss, they come back. The game is the content; the platform creates the reason to stay.
+## Что это такое
 
-## Features
+Русские шашки — самая популярная настольная игра в Центральной Азии. Серьёзной онлайн-платформы для неё не существовало. Дамка — это она.
 
-| Feature | What it does |
+Это не просто шашечная доска. Это конкурентная система, построенная вокруг игры — так же, как chess.com построен вокруг шахмат. Идея проста: если дать игрокам рейтинг ELO, городское соперничество, ежедневные задачи, кампанию боссов и разбор ошибок после каждого поражения — они вернутся. Игра — это контент; платформа создаёт причину оставаться.
+
+## Возможности
+
+| Функция | Описание |
 |---|---|
-| Live Multiplayer | Share a link. Opponent joins in under 3 seconds. No account required on their end. |
-| ELO System | Every ranked game moves your rating. Win against stronger players, earn more. |
-| City Rivalry | Wins count toward your city's weekly score. Almaty vs Astana. Real stakes. |
-| Blitz Mode | 3-minute clock per player. Run out of time, you lose. Fastest checkers on the internet. |
-| Boss Rush | 5 progressively harder AI opponents. Each one unlocks a cosmetic on defeat. |
-| AI Coach | After every game, Claude analyzes your moves and explains what you missed. |
-| Daily Puzzle | One tactical position per day, same for everyone. Global speed ranking. |
-| Evaluation Bar | Position advantage meter during games. Shows who is ahead and by how much. |
-| Shop | Board themes and piece sets, bought with in-game coins. Pro tier available. |
+| Живой мультиплеер | Поделитесь ссылкой — соперник присоединяется за 3 секунды. Другу нужен аккаунт. |
+| Рейтинг ELO | Каждая рейтинговая партия меняет ваш рейтинг. Побеждаете сильных — получаете больше. |
+| Городское соперничество | Победы идут в зачёт вашего города. Алматы против Астаны. Реальные ставки. |
+| Блиц-режим | 3 минуты на игрока. Кончилось время — поражение. |
+| Кампания боссов | 5 постепенно усложняющихся ИИ-соперников. Каждый открывает косметику при победе. |
+| ИИ-тренер | После каждой партии Claude анализирует ваши ходы и объясняет, где вы упустили победу. |
+| Ежедневная задача | Одна тактическая позиция в день, одинаковая для всех. Глобальный рейтинг по скорости. |
+| Оценочная шкала | Индикатор преимущества позиции во время партии. |
+| Магазин | Темы досок и наборы фигур за внутриигровые монеты. Доступен Pro-уровень. |
+| Двуязычность | Полная поддержка русского и английского языков. |
+| Игра с ботом | Нет соперника? Играйте против ИИ прямо из экрана ожидания — Лёгкий, Средний, Сложный. |
 
-## Why it works as a business
+## Почему это работает как бизнес
 
-The monetization follows the chess.com playbook applied to a different game:
+Монетизация следует модели chess.com, применённой к другой игре:
 
-- Coins from wins, spent in the shop: retention loop
-- Cosmetics with rarity tiers: social status signals
-- Pro membership at $4.99/month: unlimited AI coaching, exclusive boards, Pro badge
-- City rivalry creates local network effects that global platforms cannot replicate
+- Монеты за победы, трата в магазине — петля удержания
+- Косметика с градациями редкости — социальные сигналы статуса
+- Pro-подписка за $4.99/месяц — безлимитный ИИ-тренер, эксклюзивные доски, Pro-значок
+- Городское соперничество создаёт локальные сетевые эффекты, которые глобальные платформы не могут воспроизвести
 
-## Tech Stack
+## Технологический стек
 
-- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS
-- **Backend:** Node.js, Express, Socket.IO, Prisma, SQLite
-- **AI:** Anthropic Claude API (Haiku) for post-game coaching
-- **Deploy:** Render (auto-deploys from GitHub main branch)
+- **Фронтенд:** React 18, Vite, TypeScript, Tailwind CSS
+- **Бэкенд:** Node.js, Express, Socket.IO, Prisma, SQLite
+- **ИИ:** Anthropic Claude API (Haiku) для разбора партий
+- **Деплой:** Render (автодеплой из ветки main на GitHub)
 
-## Running Locally
+## Запуск локально
 
 ```bash
-# Backend
+# Бэкенд
 cd server
 npm install
-cp .env.example .env          # add ANTHROPIC_API_KEY and JWT_SECRET
+cp .env.example .env          # добавьте ANTHROPIC_API_KEY и JWT_SECRET
 npx prisma db push
-npx ts-node prisma/seed.ts    # creates 15 mock KZ players, bosses, puzzle, cosmetics
-npm run dev                   # starts on port 3001
+npx ts-node prisma/seed.ts    # создаёт 15 тестовых игроков, боссов, задачу, косметику
+npm run dev                   # запускается на порту 3001
 
-# Frontend (new terminal)
+# Фронтенд (новый терминал)
 cd client
 npm install
-npm run dev                   # starts on port 5173, proxies /api to 3001
+npm run dev                   # запускается на порту 5173, проксирует /api на 3001
 ```
 
-Open `http://localhost:5173`
+Откройте `http://localhost:5173`
 
-## Project Structure
+## Структура проекта
 
 ```
 damka/
 ├── client/
 │   └── src/
 │       ├── pages/        # Landing, Play, Game, Leaderboard, Bosses, Puzzle, Shop, Pro, Profile
-│       ├── components/   # Board (absolute-positioned piece overlay), Navbar
-│       └── lib/          # API client, Socket.IO wrapper, sounds (Web Audio API), confetti
+│       ├── components/   # Board, Navbar, Footer
+│       └── lib/          # API-клиент, Socket.IO, звуки, конфетти, i18n
 ├── server/
 │   └── src/
 │       ├── routes/       # REST: auth, leaderboard, bosses, puzzles, cosmetics, AI
-│       ├── engine/       # Game rules: legal moves, captures, king promotion, AI (minimax)
-│       ├── services/     # ELO calculation, city points, nemesis tracking
-│       └── socket.ts     # WebSocket game loop: state sync, blitz clock, AI response
+│       ├── engine/       # Правила игры: ходы, взятия, дамки, ИИ (minimax)
+│       ├── services/     # Расчёт ELO, городские очки, nemesis
+│       └── socket.ts     # WebSocket: синхронизация, блиц-часы, ответы ИИ
 └── server/prisma/
-    ├── schema.prisma     # SQLite schema
-    └── seed.ts           # Seeded mock players, city scores, bosses, daily puzzle
+    ├── schema.prisma     # Схема SQLite
+    └── seed.ts           # Начальные данные
 ```
 
-## Game Engine
+## Игровой движок
 
-The game engine runs on the server. Clients send moves; the server validates against legal move tables and returns the new state. This prevents cheating and keeps a single source of truth for game state.
+Движок работает на сервере. Клиенты отправляют ходы; сервер проверяет их и возвращает новое состояние — это предотвращает читерство.
 
-Legal move generation handles: standard diagonal moves, mandatory captures, multi-jump chains, king promotion (reaching the back rank), and king movement (any number of diagonal squares in Russian rules).
+Генерация ходов обрабатывает: стандартные диагональные ходы, обязательные взятия, цепочки взятий, превращение в дамку и движение дамки по правилам русских шашек.
 
-AI opponents use iterative-deepening minimax with alpha-beta pruning. Difficulty levels map to search depth: Easy (2-ply), Medium (4-ply), Hard (6-ply).
+ИИ-соперники используют minimax с альфа-бета отсечением. Глубина поиска: Лёгкий (2), Средний (4), Сложный (6).
 
-## Deployment Notes
+## Деплой
 
-Render free tier uses ephemeral storage. The SQLite database resets on each deploy. The start command runs `prisma db push` and the seed script before starting the server — players, bosses, cosmetics, and the daily puzzle are re-created on every deploy.
+Render бесплатного тарифа использует эфемерное хранилище. SQLite-база сбрасывается при каждом деплое. Команда запуска выполняет `prisma db push` и заполняет данными перед стартом.
 
-Set these environment variables in Render:
-- `ANTHROPIC_API_KEY` — required for AI coaching
-- `JWT_SECRET` — any long random string
+Переменные среды в Render:
+- `ANTHROPIC_API_KEY` — требуется для ИИ-тренера
+- `JWT_SECRET` — любая длинная случайная строка
 - `NODE_ENV=production`
 
 ---
 
-*Built for nFactorial School — May 2026*
+*Создано для nFactorial School — май 2026*

@@ -120,8 +120,16 @@ export default function Play() {
       wagerAmount: wager, gameMode: selected,
       aiDifficulty: selected === 'vsAI' ? difficulty : undefined,
     });
-    socket.once('game:created', ({ gameId }: any) => nav(`/game/${gameId}`));
-    socket.once('game:started', ({ gameId }: any) => nav(`/game/${gameId}`));
+    const onCreated = ({ gameId }: any) => {
+      socket.off('game:started', onStarted);
+      nav(`/game/${gameId}`);
+    };
+    const onStarted = ({ gameId }: any) => {
+      socket.off('game:created', onCreated);
+      nav(`/game/${gameId}`);
+    };
+    socket.once('game:created', onCreated);
+    socket.once('game:started', onStarted);
   }
 
   const mode = MODES.find(m => m.id === selected)!;

@@ -25,6 +25,7 @@ interface ActiveGame {
   aiDifficulty?: 'easy' | 'medium' | 'hard';
   bossId?: number;
   spectators: number;
+  savedToDb: boolean;
   // Blitz clock
   whiteTimeMs?: number;
   blackTimeMs?: number;
@@ -40,11 +41,13 @@ export function setupSocket(io: Server) {
     socket.on('game:create', async ({ userId, username, wagerAmount = 0, gameMode = 'casual', aiDifficulty, bossId }) => {
       const gameId = uuidv4();
       const isBlitz = gameMode === 'blitz';
+      const isPvP = !aiDifficulty && !bossId;
       const game: ActiveGame = {
         id: gameId, state: createGame(),
         whitePlayerId: userId, whiteUsername: username,
         wagerAmount, gameMode, startTime: Date.now(),
         aiDifficulty, bossId, spectators: 0,
+        savedToDb: isPvP,
         whiteTimeMs: isBlitz ? BLITZ_MS : undefined,
         blackTimeMs: isBlitz ? BLITZ_MS : undefined,
         turnStartTime: isBlitz ? Date.now() : undefined,
@@ -58,6 +61,12 @@ export function setupSocket(io: Server) {
         // vs AI — start immediately
         socket.emit('game:started', { gameId, state: game.state, color: 'white', opponentName: bossId ? `Boss #${bossId}` : `AI (${aiDifficulty})` });
       } else {
+        // PvP — save pending game to DB so it survives server restarts
+        try {
+          await prisma.game.create({
+            data: { id: gameId, whitePlayerId: userId, result: 'pending', moves: '[]', gameMode, wagerAmount },
+          });
+        } catch {}
         socket.emit('game:created', { gameId, shareLink: `/game/${gameId}` });
       }
     });
@@ -84,12 +93,71 @@ export function setupSocket(io: Server) {
     });
 
     // Client requests current game state (called when Game.tsx mounts)
-    socket.on('game:requestState', ({ gameId, userId }: { gameId: string; userId?: string }) => {
-      const game = activeGames.get(gameId);
+    socket.on('game:requestState', async ({ gameId, userId, username }: { gameId: string; userId?: string; username?: string }) => {
+      let game = activeGames.get(gameId);
+
+      // Server may have restarted — try to restore a pending PvP game from DB
+      if (!game) {
+        try {
+          const dbGame = await prisma.game.findUnique({
+            where: { id: gameId },
+            include: { white: true, black: true },
+          });
+          if (dbGame && dbGame.result === 'pending') {
+            const isBlitz = dbGame.gameMode === 'blitz';
+            const restored: ActiveGame = {
+              id: dbGame.id,
+              state: createGame(),
+              whitePlayerId: dbGame.whitePlayerId,
+              blackPlayerId: dbGame.blackPlayerId ?? undefined,
+              whiteUsername: dbGame.white.username,
+              blackUsername: dbGame.black?.username,
+              wagerAmount: dbGame.wagerAmount,
+              gameMode: dbGame.gameMode,
+              startTime: dbGame.createdAt.getTime(),
+              spectators: 0,
+              savedToDb: true,
+              whiteTimeMs: isBlitz ? BLITZ_MS : undefined,
+              blackTimeMs: isBlitz ? BLITZ_MS : undefined,
+              turnStartTime: isBlitz ? Date.now() : undefined,
+            };
+            activeGames.set(gameId, restored);
+            game = restored;
+          }
+        } catch {}
+      }
+
       if (!game) { socket.emit('game:notFound'); return; }
       socket.join(`game:${gameId}`);
-      const playerColor = userId === game.whitePlayerId ? 'white' : userId === game.blackPlayerId ? 'black' : null;
       const isAI = !!(game.aiDifficulty || game.bossId);
+
+      // Auto-join as second player when a friend opens the share link
+      if (!isAI && userId && username && !game.blackPlayerId && userId !== game.whitePlayerId) {
+        game.blackPlayerId = userId;
+        game.blackUsername = username;
+        // Update pending DB record to mark second player joined
+        if (game.savedToDb) {
+          try {
+            await prisma.game.update({ where: { id: gameId }, data: { blackPlayerId: userId, result: 'ongoing' } });
+          } catch {}
+        }
+        socket.emit('game:currentState', {
+          state: game.state,
+          whiteUsername: game.whiteUsername,
+          blackUsername: username,
+          playerColor: 'black',
+          isSpectator: false,
+          spectators: game.spectators,
+          wagerAmount: game.wagerAmount,
+          whiteTimeMs: game.whiteTimeMs,
+          blackTimeMs: game.blackTimeMs,
+        });
+        socket.to(`game:${gameId}`).emit('game:started', { gameId, state: game.state, whiteUsername: game.whiteUsername, blackUsername: username });
+        io.to('lobby').emit('lobby:gameUpdated', { gameId, status: 'active' });
+        return;
+      }
+
+      const playerColor = userId === game.whitePlayerId ? 'white' : userId === game.blackPlayerId ? 'black' : null;
       socket.emit('game:currentState', {
         state: game.state,
         whiteUsername: game.whiteUsername,
@@ -186,6 +254,25 @@ export function setupSocket(io: Server) {
       await endGame(io, game);
     });
 
+    // Add AI bot as second player (triggered from waiting screen)
+    socket.on('game:addBot', async ({ gameId, difficulty = 'medium' }: { gameId: string; difficulty?: 'easy' | 'medium' | 'hard' }) => {
+      const game = activeGames.get(gameId);
+      if (!game || game.blackPlayerId || game.aiDifficulty || game.bossId) return;
+      game.aiDifficulty = difficulty;
+      game.blackUsername = `AI (${difficulty})`;
+      if (game.savedToDb) {
+        try {
+          await prisma.game.update({ where: { id: game.id }, data: { result: 'ongoing', aiDifficulty: difficulty } });
+        } catch {}
+      }
+      io.to(`game:${gameId}`).emit('game:started', {
+        gameId,
+        state: game.state,
+        whiteUsername: game.whiteUsername,
+        blackUsername: `AI (${difficulty})`,
+      });
+    });
+
     // Lobby: get active games
     socket.on('lobby:join', () => {
       socket.join('lobby');
@@ -217,8 +304,13 @@ async function endGame(io: Server, game: ActiveGame) {
     0,
   );
 
-  // Save game to DB
-  await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, matchStory: story } });
+  // Save game to DB — update existing record for PvP, create new for AI/boss
+  const gameData = { moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, matchStory: story };
+  if (game.savedToDb) {
+    await prisma.game.update({ where: { id: game.id }, data: { ...gameData, blackPlayerId: game.blackPlayerId ?? null } });
+  } else {
+    await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, ...gameData } });
+  }
 
   // Update Elo and coins for PvP — track delta for end-game screen
   let whiteEloDelta = 0;

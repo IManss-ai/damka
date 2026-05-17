@@ -39,8 +39,8 @@ export default function Game() {
   const socket = getSocket();
 
   useEffect(() => {
-    if (!id) return;
-    socket.emit('game:requestState', { gameId: id, userId: user?.id });
+    if (!id || !user) return;
+    socket.emit('game:requestState', { gameId: id, userId: user.id, username: user.username });
 
     socket.on('game:currentState', ({ state: s, whiteUsername, blackUsername, playerColor: pc, isSpectator: spec, spectators: specCount, whiteTimeMs: wtm, blackTimeMs: btm }) => {
       setState(s);
@@ -306,6 +306,20 @@ export default function Game() {
   // For the bar: white is at bottom. whitePercent = how much of bar is white.
   const whiteBarPct = Math.round(((evalVal + 1) / 2) * 100); // 0..100, 50 = equal
 
+  /* ---- Not logged in ---- */
+  if (!user) return (
+    <div className="max-w-md mx-auto px-4 py-20 text-center">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-glow">
+        <h2 className="font-display text-xl font-black text-ink mb-2">Войдите чтобы играть</h2>
+        <p className="text-ink-muted text-sm mb-6">Создайте аккаунт или войдите, чтобы сыграть с другом.</p>
+        <div className="flex gap-3 justify-center">
+          <Link to="/login" className="btn-primary">Войти</Link>
+          <Link to="/register" className="btn-secondary">Регистрация</Link>
+        </div>
+      </motion.div>
+    </div>
+  );
+
   /* ---- Result screen ---- */
   if (result) {
     const won  = result.result !== 'draw' && result.result.includes('white') === (playerColor === 'white');
@@ -401,11 +415,29 @@ export default function Game() {
       >
         <div className="text-lg font-black text-ink-muted mb-4 uppercase tracking-widest">Waiting</div>
         <h2 className="font-display text-xl font-black text-ink mb-2">Waiting for opponent</h2>
-        <p className="text-ink-muted text-sm mb-4">Share this link with your friend:</p>
+        <p className="text-ink-muted text-sm mb-2">Share this link with your friend:</p>
+        <p className="text-ink-faint text-xs mb-4">Your friend must be logged in to join.</p>
         <div className="bg-surface-nav border border-border rounded-xl p-3 text-xs font-mono break-all mb-4 text-ink-muted select-all">{shareLink}</div>
-        <button onClick={() => { navigator.clipboard.writeText(shareLink); sfx.tick(); }} className="btn-primary">
+        <button onClick={() => { navigator.clipboard.writeText(shareLink); sfx.tick(); }} className="btn-primary w-full mb-3">
           Copy Link
         </button>
+        <div className="relative flex items-center my-4">
+          <div className="flex-1 border-t border-border" />
+          <span className="px-3 text-xs text-ink-faint">or</span>
+          <div className="flex-1 border-t border-border" />
+        </div>
+        <p className="text-ink-muted text-sm mb-3">No one available? Play against a bot:</p>
+        <div className="flex gap-2 justify-center">
+          {(['easy', 'medium', 'hard'] as const).map(diff => (
+            <button
+              key={diff}
+              onClick={() => { socket.emit('game:addBot', { gameId: id, difficulty: diff }); sfx.tick(); }}
+              className="btn-secondary flex-1 capitalize text-sm"
+            >
+              {diff}
+            </button>
+          ))}
+        </div>
       </motion.div>
     </div>
   );
