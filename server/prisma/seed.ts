@@ -98,31 +98,129 @@ async function main() {
     });
   }
 
-  // Daily puzzle for today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const puzzleExists = await prisma.dailyPuzzle.findFirst({ where: { date: today } });
-  if (!puzzleExists) {
-    await prisma.dailyPuzzle.create({
-      data: {
-        date: today,
-        boardState: JSON.stringify({
-          board: Array(8).fill(null).map((_, r) => Array(8).fill(null).map((_, c) => {
-            if ((r + c) % 2 === 1) {
-              if (r < 3) return { id: `b${r}${c}`, color: 'black', type: 'man', row: r, col: c };
-              if (r > 4) return { id: `w${r}${c}`, color: 'white', type: 'man', row: r, col: c };
-            }
-            return null;
-          })),
-          currentTurn: 'white',
-        }),
-        solution: JSON.stringify([{ from: { row: 5, col: 0 }, to: { row: 4, col: 1 } }]),
-        difficulty: 2,
-      },
+  // Daily puzzle — hand-crafted, cycled by day-of-week.
+  // Each position is white-to-move with a forced winning capture.
+  type PieceDef = { color: 'white' | 'black'; type?: 'man' | 'king'; row: number; col: number };
+
+  function buildBoard(pieces: PieceDef[]) {
+    const board: any[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    pieces.forEach((p, i) => {
+      board[p.row][p.col] = {
+        id: `${p.color[0]}${p.type === 'king' ? 'k' : ''}${i}`,
+        color: p.color,
+        type: p.type ?? 'man',
+        row: p.row,
+        col: p.col,
+      };
     });
+    return board;
   }
 
-  console.log('Seed complete ✅');
+  const PUZZLES: { name: string; pieces: PieceDef[]; solution: any[]; difficulty: number }[] = [
+    // Sunday (0) — single capture, learn the rule
+    {
+      name: 'Quick Strike',
+      pieces: [
+        { color: 'white', row: 5, col: 2 }, { color: 'white', row: 7, col: 0 }, { color: 'white', row: 6, col: 5 },
+        { color: 'black', row: 4, col: 3 }, { color: 'black', row: 1, col: 4 }, { color: 'black', row: 0, col: 3 },
+      ],
+      solution: [{ from: { row: 5, col: 2 }, to: { row: 3, col: 4 }, captures: [{ row: 4, col: 3 }] }],
+      difficulty: 1,
+    },
+    // Monday (1) — double jump combination
+    {
+      name: 'The Combination',
+      pieces: [
+        { color: 'white', row: 5, col: 2 }, { color: 'white', row: 6, col: 1 }, { color: 'white', row: 7, col: 4 },
+        { color: 'black', row: 4, col: 3 }, { color: 'black', row: 2, col: 5 }, { color: 'black', row: 0, col: 3 },
+      ],
+      solution: [{ from: { row: 5, col: 2 }, to: { row: 1, col: 6 }, captures: [{ row: 4, col: 3 }, { row: 2, col: 5 }] }],
+      difficulty: 2,
+    },
+    // Tuesday (2) — triple cascade
+    {
+      name: 'Cascading Captures',
+      pieces: [
+        { color: 'white', row: 5, col: 4 }, { color: 'white', row: 7, col: 0 }, { color: 'white', row: 7, col: 2 },
+        { color: 'black', row: 4, col: 3 }, { color: 'black', row: 2, col: 3 }, { color: 'black', row: 2, col: 5 },
+        { color: 'black', row: 0, col: 1 },
+      ],
+      solution: [{ from: { row: 5, col: 4 }, to: { row: 3, col: 6 }, captures: [{ row: 4, col: 3 }, { row: 2, col: 3 }, { row: 2, col: 5 }] }],
+      difficulty: 3,
+    },
+    // Wednesday (3) — breakthrough to king row
+    {
+      name: 'Promotion Path',
+      pieces: [
+        { color: 'white', row: 2, col: 3 }, { color: 'white', row: 5, col: 6 }, { color: 'white', row: 6, col: 3 },
+        { color: 'black', row: 1, col: 4 }, { color: 'black', row: 1, col: 2 }, { color: 'black', row: 4, col: 5 },
+      ],
+      solution: [{ from: { row: 2, col: 3 }, to: { row: 0, col: 5 }, captures: [{ row: 1, col: 4 }] }],
+      difficulty: 2,
+    },
+    // Thursday (4) — king's reach
+    {
+      name: "King's Reach",
+      pieces: [
+        { color: 'white', type: 'king', row: 4, col: 3 }, { color: 'white', row: 7, col: 0 }, { color: 'white', row: 7, col: 4 },
+        { color: 'black', row: 3, col: 4 }, { color: 'black', row: 1, col: 6 }, { color: 'black', row: 0, col: 1 },
+      ],
+      solution: [{ from: { row: 4, col: 3 }, to: { row: 0, col: 7 }, captures: [{ row: 3, col: 4 }, { row: 1, col: 6 }] }],
+      difficulty: 3,
+    },
+    // Friday (5) — tactical isolation
+    {
+      name: 'Tactical Fork',
+      pieces: [
+        { color: 'white', row: 4, col: 5 }, { color: 'white', row: 6, col: 3 }, { color: 'white', row: 7, col: 6 },
+        { color: 'black', row: 3, col: 6 }, { color: 'black', row: 1, col: 4 }, { color: 'black', row: 0, col: 7 },
+      ],
+      solution: [{ from: { row: 4, col: 5 }, to: { row: 2, col: 7 }, captures: [{ row: 3, col: 6 }] }],
+      difficulty: 2,
+    },
+    // Saturday (6) — endgame execution
+    {
+      name: 'Endgame Combination',
+      pieces: [
+        { color: 'white', row: 5, col: 0 }, { color: 'white', row: 5, col: 4 }, { color: 'white', row: 7, col: 6 },
+        { color: 'black', row: 4, col: 1 }, { color: 'black', row: 2, col: 3 }, { color: 'black', row: 0, col: 1 },
+      ],
+      solution: [{ from: { row: 5, col: 0 }, to: { row: 1, col: 4 }, captures: [{ row: 4, col: 1 }, { row: 2, col: 3 }] }],
+      difficulty: 2,
+    },
+  ];
+
+  // Seed all 7 puzzles for the next 7 days (so /api/puzzles/daily always finds one)
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + dayOffset);
+    const dayOfWeek = date.getDay();
+    const puzzle = PUZZLES[dayOfWeek];
+
+    const existing = await prisma.dailyPuzzle.findFirst({ where: { date } });
+    if (existing) {
+      await prisma.dailyPuzzle.update({
+        where: { id: existing.id },
+        data: {
+          boardState: JSON.stringify({ board: buildBoard(puzzle.pieces), currentTurn: 'white', name: puzzle.name }),
+          solution: JSON.stringify(puzzle.solution),
+          difficulty: puzzle.difficulty,
+        },
+      });
+    } else {
+      await prisma.dailyPuzzle.create({
+        data: {
+          date,
+          boardState: JSON.stringify({ board: buildBoard(puzzle.pieces), currentTurn: 'white', name: puzzle.name }),
+          solution: JSON.stringify(puzzle.solution),
+          difficulty: puzzle.difficulty,
+        },
+      });
+    }
+  }
+
+  console.log('Seed complete');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

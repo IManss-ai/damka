@@ -7,6 +7,7 @@ import { sfx } from '../lib/sounds';
 import { launchConfetti } from '../lib/confetti';
 import Board from '../components/Board';
 
+interface GameStats { moves: number; captures: number; durationSec: number; whiteEloDelta: number; blackEloDelta: number; }
 interface GameState { board: any[][]; currentTurn: string; result: string; moveHistory: any[]; whitePieces: number; blackPieces: number; }
 
 export default function Game() {
@@ -19,7 +20,7 @@ export default function Game() {
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
   const [opponentName, setOpponentName] = useState('...');
   const [spectators, setSpectators] = useState(0);
-  const [result, setResult] = useState<{ result: string; story: string } | null>(null);
+  const [result, setResult] = useState<{ result: string; story: string; stats?: GameStats } | null>(null);
   const [shareLink, setShareLink] = useState('');
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const [lastMove, setLastMove] = useState<any>(null);
@@ -28,9 +29,12 @@ export default function Game() {
   const [aiLoading, setAiLoading] = useState(false);
   const [whiteTimeMs, setWhiteTimeMs] = useState<number | null>(null);
   const [blackTimeMs, setBlackTimeMs] = useState<number | null>(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevPiecesRef = useRef<{ white: number; black: number } | null>(null);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const suppressNextSoundRef = useRef(false);
 
   const socket = getSocket();
 
@@ -64,12 +68,17 @@ export default function Game() {
       if (wtm !== undefined) { setWhiteTimeMs(wtm); setBlackTimeMs(btm); }
       const prev = prevPiecesRef.current;
       if (prev) {
-        const whiteLost = prev.white > s.whitePieces;
-        const blackLost = prev.black > s.blackPieces;
-        if (whiteLost || blackLost) {
-          sfx.capture();
+        if (suppressNextSoundRef.current) {
+          // Local animation already played the sound — skip server's duplicate
+          suppressNextSoundRef.current = false;
         } else {
-          sfx.move();
+          const whiteLost = prev.white > s.whitePieces;
+          const blackLost = prev.black > s.blackPieces;
+          if (whiteLost || blackLost) {
+            sfx.capture();
+          } else {
+            sfx.move();
+          }
         }
         // Check for new king
         if (lm) {
@@ -88,6 +97,7 @@ export default function Game() {
 
     socket.on('game:legalMovesResult', ({ moves }) => setLegalMoves(moves));
     socket.on('game:spectators', ({ count }) => setSpectators(count));
+    socket.on('game:aiThinking', ({ thinking }: { thinking: boolean }) => setAiThinking(thinking));
 
     socket.on('game:ended', (data) => {
       setResult(data);
@@ -108,7 +118,7 @@ export default function Game() {
     return () => {
       socket.off('game:currentState'); socket.off('game:started'); socket.off('game:notFound');
       socket.off('game:stateUpdate'); socket.off('game:legalMovesResult');
-      socket.off('game:spectators'); socket.off('game:ended');
+      socket.off('game:spectators'); socket.off('game:ended'); socket.off('game:aiThinking');
     };
   }, [id, user?.id]);
 
@@ -136,6 +146,31 @@ export default function Game() {
     return () => { if (clockRef.current) clearInterval(clockRef.current); };
   }, [state?.currentTurn, whiteTimeMs !== null]);
 
+  // For multi-capture chains: derive the order each enemy gets jumped.
+  // Works for man pieces (always 1 diagonal step between current and enemy).
+  // Returns one entry per capture; final landing should equal target.to.
+  function orderManCaptures(
+    from: { row: number; col: number },
+    captures: { row: number; col: number }[],
+  ): { cap: { row: number; col: number }; landing: { row: number; col: number } }[] {
+    const remaining = captures.map(c => ({ row: c.row, col: c.col }));
+    let cur = { row: from.row, col: from.col };
+    const result: { cap: { row: number; col: number }; landing: { row: number; col: number } }[] = [];
+    while (remaining.length > 0) {
+      const idx = remaining.findIndex(c =>
+        Math.abs(c.row - cur.row) === 1 && Math.abs(c.col - cur.col) === 1,
+      );
+      if (idx === -1) break;
+      const c = remaining.splice(idx, 1)[0];
+      const dr = Math.sign(c.row - cur.row);
+      const dc = Math.sign(c.col - cur.col);
+      const landing = { row: c.row + dr, col: c.col + dc };
+      result.push({ cap: c, landing });
+      cur = landing;
+    }
+    return result;
+  }
+
   const handleSquareClick = useCallback((row: number, col: number) => {
     if (!state || !user || state.result !== 'ongoing' || isSpectator) return;
     if (state.currentTurn !== playerColor) return;
@@ -143,20 +178,56 @@ export default function Game() {
     if (selected) {
       const target = legalMoves.find(m => m.to.row === row && m.to.col === col);
       if (target) {
-        // Optimistic update — move piece immediately, server confirms
-        const optimisticBoard = state.board.map((r: any[]) => r.map((p: any) => p ? { ...p } : null));
-        const movingPiece = optimisticBoard[target.from.row]?.[target.from.col];
-        if (movingPiece) {
-          optimisticBoard[target.from.row][target.from.col] = null;
-          movingPiece.row = target.to.row;
-          movingPiece.col = target.to.col;
-          optimisticBoard[target.to.row][target.to.col] = movingPiece;
-          for (const cap of target.captures) optimisticBoard[cap.row][cap.col] = null;
-          setState(s => s ? { ...s, board: optimisticBoard } : s);
-          setLastMove({ from: target.from, to: target.to });
+        const isMultiJump = (target.captures?.length ?? 0) >= 2;
+        const waypoints = isMultiJump ? orderManCaptures(target.from, target.captures) : [];
+
+        if (isMultiJump && waypoints.length === target.captures.length) {
+          // Multi-jump: animate piece through each landing square, removing one captured
+          // piece per hop. Suppress the server's duplicate sound on stateUpdate.
+          const HOP_MS = 240;
+          suppressNextSoundRef.current = true;
+
+          waypoints.forEach((wp, i) => {
+            setTimeout(() => {
+              setState(prev => {
+                if (!prev) return prev;
+                const b = prev.board.map((r: any[]) => r.map((p: any) => (p ? { ...p } : null)));
+                const src = i === 0 ? target.from : waypoints[i - 1].landing;
+                const movingPiece = b[src.row]?.[src.col];
+                if (movingPiece) {
+                  b[src.row][src.col] = null;
+                  movingPiece.row = wp.landing.row;
+                  movingPiece.col = wp.landing.col;
+                  b[wp.landing.row][wp.landing.col] = movingPiece;
+                }
+                b[wp.cap.row][wp.cap.col] = null;
+                return { ...prev, board: b };
+              });
+              setLastMove({ from: i === 0 ? target.from : waypoints[i - 1].landing, to: wp.landing });
+              sfx.capture();
+            }, i * HOP_MS);
+          });
+
+          // Emit the move toward the end of animation so server's stateUpdate
+          // arrives after the visual lands at the final square.
+          setTimeout(() => {
+            socket.emit('game:move', { gameId: id, move: target, userId: user.id });
+          }, waypoints.length * HOP_MS);
+        } else {
+          // Single-step move (or king edge case) — optimistic teleport, server confirms.
+          const optimisticBoard = state.board.map((r: any[]) => r.map((p: any) => (p ? { ...p } : null)));
+          const movingPiece = optimisticBoard[target.from.row]?.[target.from.col];
+          if (movingPiece) {
+            optimisticBoard[target.from.row][target.from.col] = null;
+            movingPiece.row = target.to.row;
+            movingPiece.col = target.to.col;
+            optimisticBoard[target.to.row][target.to.col] = movingPiece;
+            for (const cap of target.captures) optimisticBoard[cap.row][cap.col] = null;
+            setState(s => (s ? { ...s, board: optimisticBoard } : s));
+            setLastMove({ from: target.from, to: target.to });
+          }
+          socket.emit('game:move', { gameId: id, move: target, userId: user.id });
         }
-        sfx.move();
-        socket.emit('game:move', { gameId: id, move: target, userId: user.id });
         setSelected(null);
         setLegalMoves([]);
         return;
@@ -171,6 +242,18 @@ export default function Game() {
       setLegalMoves([]);
     }
   }, [state, selected, legalMoves, playerColor, user, id, isSpectator]);
+
+  function confirmResign() {
+    if (!user) return;
+    socket.emit('game:resign', { gameId: id, userId: user.id });
+    setShowResignConfirm(false);
+  }
+
+  function fmtDuration(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
+  }
 
   async function fetchAiAnalysis() {
     if (!state || aiLoading) return;
@@ -227,6 +310,8 @@ export default function Game() {
   if (result) {
     const won  = result.result !== 'draw' && result.result.includes('white') === (playerColor === 'white');
     const draw = result.result === 'draw';
+    const stats = result.stats;
+    const myEloDelta = stats ? (playerColor === 'white' ? stats.whiteEloDelta : stats.blackEloDelta) : 0;
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <motion.div
@@ -247,6 +332,26 @@ export default function Game() {
             {draw ? 'Both held even.' : won ? 'Well played.' : 'Better luck next time.'}
           </h2>
           <p className="text-ink-muted italic mb-2 text-sm leading-relaxed max-w-xs mx-auto">"{result.story}"</p>
+
+          {/* Stats row */}
+          {stats && (
+            <div className="grid grid-cols-3 gap-2 mt-4 mb-2">
+              <div className="bg-surface-raised border border-border rounded-lg py-2">
+                <p className="text-xs text-ink-faint">Moves</p>
+                <p className="font-black text-ink text-base">{stats.moves}</p>
+              </div>
+              <div className="bg-surface-raised border border-border rounded-lg py-2">
+                <p className="text-xs text-ink-faint">Captures</p>
+                <p className="font-black text-ink text-base">{stats.captures}</p>
+              </div>
+              <div className="bg-surface-raised border border-border rounded-lg py-2">
+                <p className="text-xs text-ink-faint">{myEloDelta !== 0 ? 'Elo' : 'Time'}</p>
+                <p className={`font-black text-base ${myEloDelta > 0 ? 'text-accent' : myEloDelta < 0 ? 'text-danger' : 'text-ink'}`}>
+                  {myEloDelta !== 0 ? `${myEloDelta > 0 ? '+' : ''}${myEloDelta}` : fmtDuration(stats.durationSec)}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* AI Analysis */}
           <div className="mt-6 mb-6">
@@ -330,6 +435,13 @@ export default function Game() {
                 {opponentName[0]?.toUpperCase() || '?'}
               </div>
               <span className="font-semibold text-ink text-sm">{opponentName}</span>
+              {aiThinking && (
+                <span className="flex items-center gap-1 ml-1" aria-label="Opponent is thinking">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '160ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '320ms' }} />
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {whiteTimeMs !== null && (
@@ -468,13 +580,33 @@ export default function Game() {
 
           {!isSpectator && state.result === 'ongoing' && (
             <button
-              onClick={() => { socket.emit('game:resign', { gameId: id, userId: user?.id }); }}
+              onClick={() => setShowResignConfirm(true)}
               className="btn-danger w-full text-sm py-2">
               Resign
             </button>
           )}
         </div>
       </div>
+
+      {/* Resign confirmation modal */}
+      {showResignConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowResignConfirm(false)}>
+          <div className="card max-w-sm w-full border border-danger/30" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-black text-ink mb-2">Resign this game?</h2>
+            <p className="text-sm text-ink-muted mb-6">
+              Your opponent will be awarded the win and your ELO will be deducted. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowResignConfirm(false)} className="btn-secondary flex-1 text-sm">
+                Keep playing
+              </button>
+              <button onClick={confirmResign} className="btn-danger flex-1 text-sm">
+                Resign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
