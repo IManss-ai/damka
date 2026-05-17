@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../stores/auth';
+import { useT } from '../lib/i18n';
 
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,8 +33,8 @@ export default function Login() {
           <div className="w-12 h-12 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center mx-auto mb-3">
             <div className="w-4 h-4 rounded-full bg-accent" />
           </div>
-          <h1 className="font-display text-2xl font-black text-ink">Welcome back</h1>
-          <p className="text-ink-muted text-sm mt-1">Sign in to continue your rivalry</p>
+          <h1 className="font-display text-2xl font-black text-ink">{t('auth.login')}</h1>
+          <p className="text-ink-muted text-sm mt-1">{t('auth.loginSubtitle')}</p>
         </div>
         <div className="card-glow">
           {error && (
@@ -50,7 +52,7 @@ export default function Login() {
                 className="input" autoComplete="email" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-muted block mb-1.5">Password</label>
+              <label className="text-xs font-semibold text-ink-muted block mb-1.5">{t('auth.password')}</label>
               <input type="password" placeholder="••••••••" value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 className="input" autoComplete="current-password" />
@@ -59,15 +61,15 @@ export default function Login() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  ...
                 </span>
-              ) : 'Sign In'}
+              ) : t('auth.loginBtn')}
             </button>
           </form>
           <p className="text-center text-sm text-ink-muted mt-5">
-            No account?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/register" className="text-accent hover:text-accent-hover font-semibold transition-colors">
-              Sign up free →
+              {t('auth.signUpLink')} →
             </Link>
           </p>
         </div>

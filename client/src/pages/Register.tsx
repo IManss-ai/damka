@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../stores/auth';
+import { useT } from '../lib/i18n';
 
 const CITIES = ['Almaty', 'Astana', 'Shymkent', 'Karaganda', 'Aktobe', 'Taraz', 'Pavlodar', 'Atyrau', 'Kostanay', 'Other'];
 
 export default function Register() {
   const { register } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   const [form, setForm] = useState({ username: '', email: '', password: '', city: 'Almaty' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,9 +35,9 @@ export default function Register() {
           <div className="w-12 h-12 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center mx-auto mb-3">
             <div className="w-4 h-4 rounded-full bg-accent" />
           </div>
-          <h1 className="font-display text-2xl font-black text-ink">Join Damka</h1>
+          <h1 className="font-display text-2xl font-black text-ink">{t('auth.register')}</h1>
           <p className="text-ink-muted text-sm mt-1">
-            <span className="text-coin font-bold">500 coins</span> on signup. Represent your city.
+            <span className="text-coin font-bold">500 coins</span> {t('auth.registerSubtitle')}
           </p>
         </div>
         <div className="card-glow">
@@ -48,7 +50,7 @@ export default function Register() {
           )}
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-ink-muted block mb-1.5">Username</label>
+              <label className="text-xs font-semibold text-ink-muted block mb-1.5">{t('auth.username')}</label>
               <input placeholder="YourHandle" value={form.username}
                 onChange={e => setForm({ ...form, username: e.target.value })}
                 className="input" autoComplete="username" />
@@ -60,13 +62,13 @@ export default function Register() {
                 className="input" autoComplete="email" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-muted block mb-1.5">Password</label>
+              <label className="text-xs font-semibold text-ink-muted block mb-1.5">{t('auth.password')}</label>
               <input type="password" placeholder="••••••••" value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 className="input" autoComplete="new-password" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-muted block mb-1.5">Your City</label>
+              <label className="text-xs font-semibold text-ink-muted block mb-1.5">{t('auth.city')}</label>
               <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
                 className="input">
                 {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -76,15 +78,15 @@ export default function Register() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating account...
+                  ...
                 </span>
-              ) : 'Create Free Account'}
+              ) : t('auth.registerBtn')}
             </button>
           </form>
           <p className="text-center text-sm text-ink-muted mt-5">
-            Have an account?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link to="/login" className="text-accent hover:text-accent-hover font-semibold transition-colors">
-              Login →
+              {t('auth.loginLink')} →
             </Link>
           </p>
         </div>
