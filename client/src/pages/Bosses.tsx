@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../stores/auth';
+import { useT } from '../lib/i18n';
 
 const BOSS_ICONS = ['I','II','III','IV','V'];
 const ELO_COLORS = ['text-accent','text-blue-400','text-purple-400','text-yellow-400','text-red-400'];
@@ -11,6 +12,7 @@ export default function Bosses() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [bosses, setBosses] = useState<any[]>([]);
+  const t = useT();
 
   useEffect(() => {
     api.bosses.list().then(setBosses).catch(() => {});
@@ -25,12 +27,12 @@ export default function Bosses() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-black text-ink mb-1">Boss Rush</h1>
-      <p className="text-ink-muted text-sm mb-8">Defeat all 5 bosses to become a Damka legend. Each boss unlocks a cosmetic reward.</p>
+      <h1 className="text-2xl font-black text-ink mb-1">{t('bosses.title')}</h1>
+      <p className="text-ink-muted text-sm mb-8">{t('bosses.subtitle')}</p>
 
       {!user && (
         <div className="card text-center mb-6 border-surface-border">
-          <p className="text-ink-muted text-sm">Sign in to track your progress and claim rewards.</p>
+          <p className="text-ink-muted text-sm">{t('bosses.signIn')}</p>
         </div>
       )}
 
@@ -45,7 +47,6 @@ export default function Bosses() {
                 locked  ? 'border-surface-border opacity-50' :
                           'border-surface-border hover:border-accent/50'
               }`}>
-              {/* Rank badge */}
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-black text-sm shrink-0 bg-surface-raised ${ELO_COLORS[i]}`}>
                 {BOSS_ICONS[i]}
               </div>
@@ -59,13 +60,13 @@ export default function Bosses() {
                   )}
                 </div>
                 <p className="text-xs text-ink-muted mt-0.5 line-clamp-2">{boss.description}</p>
-                <p className="text-xs text-ink-faint mt-0.5">Reward: <span className="text-coin font-medium">{boss.rewardName}</span></p>
+                <p className="text-xs text-ink-faint mt-0.5">{t('bosses.reward')} <span className="text-coin font-medium">{boss.rewardName}</span></p>
               </div>
 
               <div className="shrink-0">
                 {beaten  ? <span className="text-accent text-sm font-bold">Defeated</span> :
-                 locked  ? <span className="text-ink-faint text-sm">Locked</span> :
-                 <button onClick={() => challengeBoss(boss)} className="btn-primary text-sm py-1.5 px-4">Challenge</button>}
+                 locked  ? <span className="text-ink-faint text-sm">{t('bosses.locked')}</span> :
+                 <button onClick={() => challengeBoss(boss)} className="btn-primary text-sm py-1.5 px-4">{t('bosses.challenge')}</button>}
               </div>
             </div>
           );

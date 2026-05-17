@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 
 const TIER_COLORS: Record<string, string> = {
   Legend: 'text-yellow-400', Grandmaster: 'text-purple-400',
@@ -12,6 +13,7 @@ export default function Leaderboard() {
   const [tab, setTab] = useState<'global'|'city'>('global');
   const [global, setGlobal] = useState<any[]>([]);
   const [city, setCity] = useState<any[]>([]);
+  const t = useT();
 
   useEffect(() => {
     api.leaderboard.global().then(setGlobal).catch(() => {});
@@ -20,15 +22,15 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-black text-ink mb-6">Leaderboard</h1>
+      <h1 className="text-2xl font-black text-ink mb-6">{t('lb.title')}</h1>
 
       <div className="flex gap-2 mb-6 bg-surface-nav rounded-lg p-1 w-fit">
-        {(['global','city'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
+        {(['global','city'] as const).map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`px-5 py-1.5 rounded-md text-sm font-semibold transition-all ${
-              tab === t ? 'bg-surface-raised text-ink' : 'text-ink-muted hover:text-ink'
+              tab === tabKey ? 'bg-surface-raised text-ink' : 'text-ink-muted hover:text-ink'
             }`}>
-            {t === 'global' ? 'Global' : 'City Rivalry'}
+            {tabKey === 'global' ? t('lb.global') : t('lb.city')}
           </button>
         ))}
       </div>
@@ -49,13 +51,13 @@ export default function Leaderboard() {
               </div>
             </Link>
           ))}
-          {global.length === 0 && <p className="text-ink-faint text-center py-10 text-sm">No players yet — be the first!</p>}
+          {global.length === 0 && <p className="text-ink-faint text-center py-10 text-sm">{t('lb.noPlayers')}</p>}
         </div>
       )}
 
       {tab === 'city' && (
         <div className="card">
-          <p className="text-xs text-ink-faint mb-4">Points reset every Monday. Win ranked games to earn points for your city.</p>
+          <p className="text-xs text-ink-faint mb-4">{t('lb.cityResetNote')}</p>
           <div className="space-y-2">
             {city.map((s) => (
               <div key={s.city} className="flex items-center gap-3 px-3 py-2.5 bg-surface-raised rounded-lg">
@@ -64,7 +66,7 @@ export default function Leaderboard() {
                 <span className="font-bold text-ink-muted text-sm">{s.totalPoints} pts</span>
               </div>
             ))}
-            {city.length === 0 && <p className="text-ink-faint text-center py-10 text-sm">No city scores this week yet.</p>}
+            {city.length === 0 && <p className="text-ink-faint text-center py-10 text-sm">{t('lb.noCityScores')}</p>}
           </div>
         </div>
       )}

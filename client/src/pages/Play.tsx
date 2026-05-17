@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../stores/auth';
+import { useT } from '../lib/i18n';
 
 const Icons = {
   target: (
@@ -43,70 +44,71 @@ const Icons = {
   ),
 };
 
-const MODES = [
-  {
-    id: 'vsAI',
-    title: 'Practice',
-    sub: 'vs Computer',
-    desc: 'Play against AI at your chosen difficulty. No stakes, just improvement.',
-    badge: null,
-    icon: Icons.target,
-    disabled: false,
-  },
-  {
-    id: 'multiplayer',
-    title: 'Challenge',
-    sub: 'vs Friend',
-    desc: 'Send a link. Your opponent joins instantly. No account needed on their end.',
-    badge: 'Popular',
-    icon: Icons.link,
-    disabled: false,
-  },
-  {
-    id: 'ranked',
-    title: 'Ranked',
-    sub: 'Earn ELO',
-    desc: 'Win to climb the global leaderboard and earn points for your city.',
-    badge: 'Competitive',
-    icon: Icons.trophy,
-    disabled: false,
-  },
-  {
-    id: 'blitz',
-    title: 'Blitz',
-    sub: '3-min clock',
-    desc: 'Each player has 3 minutes total. Clock runs on your turn. Run out of time — you lose.',
-    badge: 'New',
-    icon: Icons.bolt,
-    disabled: false,
-  },
-  {
-    id: 'chaos',
-    title: 'Chaos',
-    sub: 'Random board',
-    desc: 'Scrambled starting position. Pure tactics, no memorized openings.',
-    badge: null,
-    icon: Icons.dots,
-    disabled: false,
-  },
-  {
-    id: 'tournament',
-    title: 'Tournament',
-    sub: 'Weekly bracket',
-    desc: 'Compete in the weekly KZ bracket. Top 8 finishers split the coin pool.',
-    badge: 'Soon',
-    icon: Icons.bracket,
-    disabled: true,
-  },
-];
-
 export default function Play() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [wager, setWager] = useState(0);
   const [selected, setSelected] = useState('vsAI');
   const [loading, setLoading] = useState(false);
+
+  const MODES = [
+    {
+      id: 'vsAI',
+      title: t('play.practice'),
+      sub: t('play.vsComputer'),
+      desc: t('play.practiceDesc'),
+      badge: null,
+      icon: Icons.target,
+      disabled: false,
+    },
+    {
+      id: 'multiplayer',
+      title: t('play.challenge'),
+      sub: t('play.vsFriend'),
+      desc: t('play.challengeDesc'),
+      badge: t('play.popular'),
+      icon: Icons.link,
+      disabled: false,
+    },
+    {
+      id: 'ranked',
+      title: t('play.ranked'),
+      sub: t('play.earnElo'),
+      desc: t('play.rankedDesc'),
+      badge: t('play.competitive'),
+      icon: Icons.trophy,
+      disabled: false,
+    },
+    {
+      id: 'blitz',
+      title: t('play.blitz'),
+      sub: t('play.blitzClock'),
+      desc: t('play.blitzDesc'),
+      badge: t('play.new'),
+      icon: Icons.bolt,
+      disabled: false,
+    },
+    {
+      id: 'chaos',
+      title: t('play.chaos'),
+      sub: t('play.randomBoard'),
+      desc: t('play.chaosDesc'),
+      badge: null,
+      icon: Icons.dots,
+      disabled: false,
+    },
+    {
+      id: 'tournament',
+      title: t('play.tournament'),
+      sub: t('play.weeklyBracket'),
+      desc: t('play.tournamentDesc'),
+      badge: t('play.soon'),
+      icon: Icons.bracket,
+      disabled: true,
+    },
+  ];
 
   function startGame() {
     if (!user) { nav('/register'); return; }
@@ -123,12 +125,18 @@ export default function Play() {
 
   const mode = MODES.find(m => m.id === selected)!;
 
+  const difficultyOptions = [
+    { v: 'easy' as const, label: t('play.easy'), sub: '~900 ELO' },
+    { v: 'medium' as const, label: t('play.medium'), sub: '~1200 ELO' },
+    { v: 'hard' as const, label: t('play.hard'), sub: '~1600 ELO' },
+  ];
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-14">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
-        <h1 className="font-display text-3xl font-black text-ink mb-1">New Game</h1>
-        <p className="text-ink-muted text-sm mb-10">Choose your mode and start playing.</p>
+        <h1 className="font-display text-3xl font-black text-ink mb-1">{t('play.title')}</h1>
+        <p className="text-ink-muted text-sm mb-10">{t('play.subtitle')}</p>
 
         {/* Mode grid */}
         <div className="grid grid-cols-2 gap-3 mb-8">
@@ -168,13 +176,9 @@ export default function Play() {
         <div className="bg-surface-card border border-border rounded-xl p-5 mb-6 space-y-5">
           {selected === 'vsAI' && (
             <div>
-              <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-3">Difficulty</p>
+              <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-3">{t('play.difficulty')}</p>
               <div className="flex gap-2">
-                {([
-                  { v: 'easy', label: 'Easy', sub: '~900 ELO' },
-                  { v: 'medium', label: 'Medium', sub: '~1200 ELO' },
-                  { v: 'hard', label: 'Hard', sub: '~1600 ELO' },
-                ] as const).map(({ v, label, sub }) => (
+                {difficultyOptions.map(({ v, label, sub }) => (
                   <button
                     key={v}
                     onClick={() => setDifficulty(v)}
@@ -244,8 +248,8 @@ export default function Play() {
 
         {!user && (
           <p className="text-center text-xs text-ink-faint mt-4">
-            You need an account to play.{' '}
-            <a href="/register" className="text-accent hover:underline">Sign up free</a>
+            {t('play.needAccount')}{' '}
+            <a href="/register" className="text-accent hover:underline">{t('play.signUpFree')}</a>
           </p>
         )}
 

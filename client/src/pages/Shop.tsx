@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../stores/auth';
+import { useT } from '../lib/i18n';
 
 const RARITY_BADGE: Record<string, string> = {
   legendary: 'text-yellow-400',
@@ -10,7 +11,7 @@ const RARITY_BADGE: Record<string, string> = {
   common: 'text-ink-faint',
 };
 
-const TYPE_LABEL: Record<string, string> = { board: 'Board', piece: 'Piece Set', fx: 'Effect' };
+const TYPE_LABEL_KEYS: Record<string, 'shop.board' | 'shop.pieceSet' | 'shop.effect'> = { board: 'shop.board', piece: 'shop.pieceSet', fx: 'shop.effect' };
 
 function ShopPreview({ cosmetic }: { cosmetic: { type: string; cssClass: string } }) {
   if (cosmetic.type === 'board') {
@@ -43,6 +44,7 @@ function ShopPreview({ cosmetic }: { cosmetic: { type: string; cssClass: string 
 export default function Shop() {
   const { user, setUser } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   const [cosmetics, setCosmetics] = useState<any[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [buying, setBuying] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function Shop() {
 
   async function buy(id: string, price: number, name: string) {
     if (!user) return;
-    if (user.coins < price) { setMsg('Not enough coins!'); return; }
+    if (user.coins < price) { setMsg(t('shop.notEnough')); return; }
     setBuying(id);
     try {
       await api.cosmetics.buy(id);
@@ -75,13 +77,13 @@ export default function Shop() {
     <div className="max-w-2xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-ink">Shop</h1>
-          <p className="text-ink-muted text-sm">Spend coins on cosmetics</p>
+          <h1 className="text-2xl font-black text-ink">{t('shop.title')}</h1>
+          <p className="text-ink-muted text-sm">{t('shop.subtitle')}</p>
         </div>
         {user && (
           <div className="card-sm text-center">
             <p className="font-black text-coin text-lg">{user.coins}</p>
-            <p className="text-xs text-ink-faint">coins</p>
+            <p className="text-xs text-ink-faint">{t('shop.coins')}</p>
           </div>
         )}
       </div>
@@ -93,9 +95,10 @@ export default function Shop() {
       {groups.map(group => {
         const items = cosmetics.filter(c => c.type === group);
         if (!items.length) return null;
+        const labelKey = TYPE_LABEL_KEYS[group];
         return (
           <div key={group} className="mb-8">
-            <p className="section-title mb-3">{TYPE_LABEL[group] || group}</p>
+            <p className="section-title mb-3">{labelKey ? t(labelKey) : group}</p>
             <div className="grid grid-cols-2 gap-3">
               {items.map(c => (
                 <div key={c.id} className="card border border-surface-border flex flex-col gap-3">
@@ -106,19 +109,19 @@ export default function Shop() {
                     <h3 className="font-bold text-ink text-sm">{c.name}</h3>
                     <span className={`text-xs font-semibold capitalize ${RARITY_BADGE[c.rarity]}`}>{c.rarity}</span>
                   </div>
-                  <p className="text-xs text-ink-faint capitalize">{TYPE_LABEL[c.type]}</p>
+                  <p className="text-xs text-ink-faint">{labelKey ? t(labelKey) : group}</p>
                   <div className="mt-auto pt-1">
                     {c.price === 0 ? (
-                      <span className="text-accent font-bold text-sm">Free (default)</span>
+                      <span className="text-accent font-bold text-sm">{t('shop.free')}</span>
                     ) : owned.has(c.id) ? (
-                      <span className="text-accent font-bold text-sm">Owned</span>
+                      <span className="text-accent font-bold text-sm">{t('shop.owned')}</span>
                     ) : (
                       <button
                         onClick={() => buy(c.id, c.price, c.name)}
                         disabled={!!buying || !user || (!!user && user.coins < c.price)}
                         className="btn-primary text-sm w-full disabled:opacity-40"
                       >
-                        {buying === c.id ? 'Buying...' : `${c.price} coins`}
+                        {buying === c.id ? t('shop.buying') : `${c.price} ${t('shop.buy')}`}
                       </button>
                     )}
                   </div>
@@ -133,13 +136,13 @@ export default function Shop() {
         <div className="flex items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-black text-ink">Pro Membership</h3>
+              <h3 className="font-black text-ink">{t('shop.proTitle')}</h3>
               <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">PRO</span>
             </div>
-            <p className="text-sm text-ink-muted">Animated pieces, exclusive boards, Pro badge, priority matchmaking, and detailed statistics.</p>
+            <p className="text-sm text-ink-muted">{t('shop.proDesc')}</p>
           </div>
           <button onClick={() => nav('/pro')} className="btn-primary shrink-0">
-            $4.99/mo
+            {t('shop.proPrice')}
           </button>
         </div>
       </div>

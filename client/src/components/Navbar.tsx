@@ -2,14 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/auth';
 import { audioPrefs } from '../lib/sounds';
-
-const NAV_LINKS = [
-  { to: '/play',        label: 'Play' },
-  { to: '/leaderboard', label: 'Rankings' },
-  { to: '/bosses',      label: 'Boss Rush' },
-  { to: '/puzzle',      label: 'Daily Puzzle' },
-  { to: '/shop',        label: 'Shop' },
-];
+import { useLang, useT } from '../lib/i18n';
 
 function AudioSettings() {
   const [open, setOpen] = useState(false);
@@ -45,7 +38,7 @@ function AudioSettings() {
       <button
         onClick={() => setOpen(o => !o)}
         className="text-ink-muted hover:text-ink transition-colors p-1.5 rounded-md hover:bg-surface-raised"
-        aria-label={prefs.muted ? 'Audio muted, open audio settings' : 'Open audio settings'}
+        aria-label={prefs.muted ? 'Audio muted' : 'Audio settings'}
       >
         {speakerIcon}
       </button>
@@ -67,10 +60,7 @@ function AudioSettings() {
               <span className="text-xs font-mono text-ink-faint">{Math.round(prefs.volume * 100)}%</span>
             </div>
             <input
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(prefs.volume * 100)}
+              type="range" min={0} max={100} value={Math.round(prefs.volume * 100)}
               onChange={e => audioPrefs.setVolume(Number(e.target.value) / 100)}
               disabled={prefs.muted}
               className="w-full accent-accent disabled:opacity-40"
@@ -86,27 +76,48 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const { pathname } = useLocation();
+  const { lang, setLang } = useLang();
+  const t = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const NAV_LINKS = [
+    { to: '/play',        label: t('nav.play') },
+    { to: '/leaderboard', label: t('nav.rankings') },
+    { to: '/bosses',      label: t('nav.bossRush') },
+    { to: '/puzzle',      label: t('nav.dailyPuzzle') },
+    { to: '/shop',        label: t('nav.shop') },
+  ];
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [menuOpen]);
+
+  // Close menu on route change
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   return (
-    <nav className="bg-surface-nav border-b border-border sticky top-0 z-50">
+    <nav className="bg-surface-nav border-b border-border sticky top-0 z-50" ref={menuRef}>
       <div className="max-w-6xl mx-auto px-3 sm:px-4 h-12 flex items-center justify-between gap-2">
 
         <Link to="/" className="font-display font-black text-lg text-ink hover:text-accent transition-colors tracking-tight shrink-0">
           Damka
         </Link>
 
-        {/* Center nav — horizontal scroll on mobile, flex on desktop */}
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-thin min-w-0 flex-1 justify-center">
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
           {NAV_LINKS.map(({ to, label }) => {
             const active = pathname === to || (to !== '/' && pathname.startsWith(to));
             return (
-              <Link
-                key={to}
-                to={to}
-                className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-                  active
-                    ? 'text-ink bg-surface-raised'
-                    : 'text-ink-muted hover:text-ink hover:bg-surface-raised'
+              <Link key={to} to={to}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
+                  active ? 'text-ink bg-surface-raised' : 'text-ink-muted hover:text-ink hover:bg-surface-raised'
                 }`}
               >
                 {label}
@@ -115,39 +126,115 @@ export default function Navbar() {
           })}
         </div>
 
+        {/* Right side: lang toggle + audio + auth */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <AudioSettings />
-          {user ? (
-            <>
-              <Link
-                to={`/profile/${user.username}`}
-                className="flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-accent transition-colors"
-              >
-                <span className="w-6 h-6 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-xs font-black text-accent">
-                  {user.username[0]?.toUpperCase()}
-                </span>
-                <span className="hidden sm:inline">{user.username}</span>
-              </Link>
-              <span className="text-xs font-bold text-coin bg-surface-raised border border-border px-2 py-1 rounded-md whitespace-nowrap">
-                {user.coins}c
-              </span>
-              <button
-                onClick={() => logout().then(() => nav('/'))}
-                className="text-xs text-ink-faint hover:text-danger transition-colors px-1.5"
-                aria-label="Sign out"
-              >
-                out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="btn-secondary text-xs sm:text-sm py-1.5 px-3 sm:px-4">Login</Link>
-              <Link to="/register" className="btn-primary text-xs sm:text-sm py-1.5 px-3 sm:px-4">Sign Up</Link>
-            </>
-          )}
-        </div>
+          {/* Language toggle */}
+          <div className="flex items-center rounded-md overflow-hidden border border-border text-xs font-bold">
+            <button
+              onClick={() => setLang('en')}
+              className={`px-2 py-1 transition-colors ${lang === 'en' ? 'bg-surface-raised text-ink' : 'text-ink-faint hover:text-ink'}`}
+            >EN</button>
+            <button
+              onClick={() => setLang('ru')}
+              className={`px-2 py-1 transition-colors ${lang === 'ru' ? 'bg-surface-raised text-ink' : 'text-ink-faint hover:text-ink'}`}
+            >RU</button>
+          </div>
 
+          <AudioSettings />
+
+          {/* Desktop auth */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            {user ? (
+              <>
+                <Link to={`/profile/${user.username}`}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-accent transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-xs font-black text-accent">
+                    {user.username[0]?.toUpperCase()}
+                  </span>
+                  <span className="hidden sm:inline">{user.username}</span>
+                </Link>
+                <span className="text-xs font-bold text-coin bg-surface-raised border border-border px-2 py-1 rounded-md whitespace-nowrap">
+                  {user.coins}c
+                </span>
+                <button onClick={() => logout().then(() => nav('/'))}
+                  className="text-xs text-ink-faint hover:text-danger transition-colors px-1.5"
+                  aria-label="Sign out"
+                >{t('nav.signOut')}</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn-secondary text-xs py-1.5 px-3">{t('nav.login')}</Link>
+                <Link to="/register" className="btn-primary text-xs py-1.5 px-3">{t('nav.signUp')}</Link>
+              </>
+            )}
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden p-1.5 text-ink-muted hover:text-ink transition-colors rounded-md hover:bg-surface-raised"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile dropdown menu */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-border bg-surface-nav">
+          <div className="max-w-6xl mx-auto px-3 py-3 flex flex-col gap-1">
+            {NAV_LINKS.map(({ to, label }) => {
+              const active = pathname === to || (to !== '/' && pathname.startsWith(to));
+              return (
+                <Link key={to} to={to}
+                  className={`px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                    active ? 'text-ink bg-surface-raised' : 'text-ink-muted hover:text-ink hover:bg-surface-raised'
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+            <div className="border-t border-border mt-2 pt-2">
+              {user ? (
+                <div className="flex items-center justify-between px-3 py-2">
+                  <Link to={`/profile/${user.username}`}
+                    className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-accent"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-xs font-black text-accent">
+                      {user.username[0]?.toUpperCase()}
+                    </span>
+                    {user.username}
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-coin bg-surface-raised border border-border px-2 py-1 rounded-md">
+                      {user.coins}c
+                    </span>
+                    <button onClick={() => logout().then(() => nav('/'))}
+                      className="text-xs text-ink-faint hover:text-danger transition-colors"
+                    >{t('nav.signOut')}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 px-1">
+                  <Link to="/login" className="btn-secondary text-sm py-2 flex-1 text-center">{t('nav.login')}</Link>
+                  <Link to="/register" className="btn-primary text-sm py-2 flex-1 text-center">{t('nav.signUp')}</Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
