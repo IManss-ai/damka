@@ -326,81 +326,154 @@ export default function Game() {
     const draw = result.result === 'draw';
     const stats = result.stats;
     const myEloDelta = stats ? (playerColor === 'white' ? stats.whiteEloDelta : stats.blackEloDelta) : 0;
+
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="card-glow"
-        >
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Main result card */}
           <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 18, delay: 0.1 }}
-            className={`text-6xl font-black mb-3 font-display ${draw ? 'text-ink-muted' : won ? 'text-accent' : 'text-danger'}`}
+            initial={{ scale: 0.7, opacity: 0, y: 40 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+            className="card-glow text-center mb-4"
           >
-            {draw ? 'Draw' : won ? 'Victory' : 'Defeated'}
-          </motion.div>
-          <h2 className={`font-display text-xl font-semibold mb-2 ${draw ? 'text-ink-muted' : won ? 'text-ink' : 'text-ink-muted'}`}>
-            {draw ? 'Both held even.' : won ? 'Well played.' : 'Better luck next time.'}
-          </h2>
-          <p className="text-ink-muted italic mb-2 text-sm leading-relaxed max-w-xs mx-auto">"{result.story}"</p>
+            {/* Outcome badge */}
+            <motion.div
+              initial={{ scale: 0, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.15 }}
+              className={`inline-block px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 ${
+                draw ? 'bg-surface-raised text-ink-muted border border-border'
+                : won ? 'bg-accent/20 text-accent border border-accent/40'
+                : 'bg-danger/20 text-danger border border-danger/40'
+              }`}
+            >
+              {draw ? 'Draw' : won ? 'Victory' : 'Defeat'}
+            </motion.div>
 
-          {/* Stats row */}
-          {stats && (
-            <div className="grid grid-cols-3 gap-2 mt-4 mb-2">
-              <div className="bg-surface-raised border border-border rounded-lg py-2">
-                <p className="text-xs text-ink-faint">Moves</p>
-                <p className="font-black text-ink text-base">{stats.moves}</p>
-              </div>
-              <div className="bg-surface-raised border border-border rounded-lg py-2">
-                <p className="text-xs text-ink-faint">Captures</p>
-                <p className="font-black text-ink text-base">{stats.captures}</p>
-              </div>
-              <div className="bg-surface-raised border border-border rounded-lg py-2">
-                <p className="text-xs text-ink-faint">{myEloDelta !== 0 ? 'Elo' : 'Time'}</p>
-                <p className={`font-black text-base ${myEloDelta > 0 ? 'text-accent' : myEloDelta < 0 ? 'text-danger' : 'text-ink'}`}>
-                  {myEloDelta !== 0 ? `${myEloDelta > 0 ? '+' : ''}${myEloDelta}` : fmtDuration(stats.durationSec)}
-                </p>
-              </div>
-            </div>
-          )}
+            {/* Big result text */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className={`font-display text-5xl font-black mb-2 ${
+                draw ? 'text-ink-muted' : won ? 'text-accent' : 'text-ink'
+              }`}
+            >
+              {draw ? 'Evenly Matched' : won ? 'Well Played!' : 'Good Fight'}
+            </motion.h1>
 
-          {/* AI Analysis */}
-          <div className="mt-6 mb-6">
-            {!aiAnalysis && !aiLoading && (
-              <button onClick={fetchAiAnalysis} className="btn-primary w-full">
-                AI Coach Analysis
-              </button>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-ink-muted text-sm italic mb-6 leading-relaxed px-4"
+            >
+              "{result.story}"
+            </motion.p>
+
+            {/* ELO change — prominent */}
+            {myEloDelta !== 0 && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300, delay: 0.35 }}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl mb-5 font-black text-xl ${
+                  myEloDelta > 0
+                    ? 'bg-accent/15 text-accent border border-accent/30'
+                    : 'bg-danger/15 text-danger border border-danger/30'
+                }`}
+              >
+                <span>{myEloDelta > 0 ? '+' : ''}{myEloDelta}</span>
+                <span className="text-sm font-semibold opacity-70">ELO</span>
+              </motion.div>
             )}
-            {aiLoading && (
-              <div className="bg-surface-raised border border-border rounded-xl p-4 text-left">
-                <div className="flex items-center gap-3 text-accent">
-                  <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm font-medium">Analyzing your game...</span>
-                </div>
-              </div>
-            )}
-            {aiAnalysis && (
+
+            {/* Stats grid */}
+            {stats && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-surface-raised border border-accent/30 rounded-xl p-4 text-left"
+                transition={{ delay: 0.4 }}
+                className="grid grid-cols-3 gap-2 mb-6"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-bold text-accent uppercase tracking-widest">AI Coach Analysis</span>
-                </div>
-                <p className="text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">{aiAnalysis}</p>
+                {[
+                  { label: 'Moves', value: stats.moves },
+                  { label: 'Captures', value: stats.captures },
+                  { label: 'Time', value: fmtDuration(stats.durationSec) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-surface-raised border border-border rounded-xl py-3">
+                    <p className="text-xs text-ink-faint mb-1">{label}</p>
+                    <p className="font-black text-ink text-lg">{value}</p>
+                  </div>
+                ))}
               </motion.div>
             )}
-          </div>
 
-          <div className="flex gap-3 justify-center">
-            <Link to="/play" className="btn-primary">Play Again</Link>
-            <Link to="/" className="btn-secondary">Home</Link>
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <Link to="/play" className="btn-primary flex-1">Play Again</Link>
+              <Link to="/leaderboard" className="btn-secondary flex-1">Rankings</Link>
+            </div>
+          </motion.div>
+
+          {/* AI Coach card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-surface-card border border-border rounded-2xl p-5"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent">
+                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 5v5l3 3" />
+                </svg>
+              </div>
+              <span className="text-sm font-bold text-ink">AI Coach</span>
+              <span className="ml-auto text-xs text-ink-faint">Free analysis</span>
+            </div>
+
+            {!aiAnalysis && !aiLoading && (
+              <div>
+                <p className="text-xs text-ink-muted mb-3">Get instant feedback on your game — what you did well and what to improve.</p>
+                <button onClick={fetchAiAnalysis} className="btn-primary w-full text-sm py-2.5">
+                  Analyze My Game
+                </button>
+              </div>
+            )}
+
+            {aiLoading && (
+              <div className="flex items-center gap-3 py-2">
+                <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-ink">Analyzing your game...</p>
+                  <p className="text-xs text-ink-faint">Looking for tactical patterns</p>
+                </div>
+              </div>
+            )}
+
+            {aiAnalysis && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <p className="text-sm text-ink-muted leading-relaxed">{aiAnalysis}</p>
+                <button
+                  onClick={() => { setAiAnalysis(null); }}
+                  className="mt-3 text-xs text-ink-faint hover:text-ink transition-colors"
+                >
+                  Clear
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Home link */}
+          <div className="text-center mt-4">
+            <Link to="/" className="text-xs text-ink-faint hover:text-ink transition-colors">Back to home</Link>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }

@@ -6,13 +6,14 @@ process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason);
 });
 
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import path from 'path';
 import { setupSocket } from './socket';
+import { runStartup } from './startup';
 import authRoutes from './routes/auth';
 import leaderboardRoutes from './routes/leaderboard';
 import puzzleRoutes from './routes/puzzles';
@@ -42,6 +43,12 @@ app.use('/api/cosmetics', cosmeticRoutes);
 app.use('/api/ai', aiRoutes);
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
 
+// Catch-all Express error handler — routes that call next(err) land here
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[route error]', err);
+  if (!res.headersSent) res.status(500).json({ error: 'Server error' });
+});
+
 // Serve static client in production
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../../client/dist');
@@ -52,4 +59,8 @@ if (process.env.NODE_ENV === 'production') {
 setupSocket(io);
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => console.log(`🎮 Damka server running on port ${PORT}`));
+httpServer.listen(PORT, async () => {
+  console.log(`Damka server running on port ${PORT}`);
+  // Run seed after server is listening so clients don't time out waiting
+  await runStartup();
+});

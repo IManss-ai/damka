@@ -314,34 +314,34 @@ export function setupSocket(io: Server) {
 }
 
 async function endGame(io: Server, game: ActiveGame) {
+  // Compute result data — these are all synchronous, no crash risk
+  const duration = Math.floor((Date.now() - game.startTime) / 1000);
+  const totalMoves = game.state.moveHistory.length;
+  const totalCaptures = game.state.moveHistory.reduce(
+    (sum, m: any) => sum + (Array.isArray(m.captures) ? m.captures.length : 0),
+    0,
+  );
+  let story = '';
   try {
-    const duration = Math.floor((Date.now() - game.startTime) / 1000);
-    const winnerId = game.state.result === 'white_wins' ? game.whitePlayerId : game.state.result === 'black_wins' ? game.blackPlayerId : null;
-    const loserId = winnerId === game.whitePlayerId ? game.blackPlayerId : game.whitePlayerId;
+    story = generateMatchStory(game.state, game.state.result === 'white_wins' ? 'white' : game.state.result === 'black_wins' ? 'black' : 'draw', game.whiteUsername, game.blackUsername || 'AI');
+  } catch { story = 'A hard-fought game.'; }
 
-    const story = generateMatchStory(game.state, game.state.result === 'white_wins' ? 'white' : game.state.result === 'black_wins' ? 'black' : 'draw', game.whiteUsername, game.blackUsername || 'AI');
+  let whiteEloDelta = 0;
+  let blackEloDelta = 0;
 
-    const totalMoves = game.state.moveHistory.length;
-    const totalCaptures = game.state.moveHistory.reduce(
-      (sum, m: any) => sum + (Array.isArray(m.captures) ? m.captures.length : 0),
-      0,
-    );
-
-    // Save game to DB — update existing record for PvP, create new for AI/boss
-    const gameData = { moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, matchStory: story };
+  // All DB work is fire-and-forget — we NEVER let it block the game:ended emit
+  Promise.resolve().then(async () => {
     try {
+      const gameData = { moves: JSON.stringify(game.state.moveHistory), result: game.state.result, duration, matchStory: story };
       if (game.savedToDb) {
         await prisma.game.update({ where: { id: game.id }, data: { ...gameData, blackPlayerId: game.blackPlayerId ?? null } });
       } else {
         await prisma.game.create({ data: { id: game.id, whitePlayerId: game.whitePlayerId, blackPlayerId: game.blackPlayerId ?? null, wagerAmount: game.wagerAmount, gameMode: game.gameMode, aiDifficulty: game.aiDifficulty ?? null, bossId: game.bossId ?? null, ...gameData } });
       }
-    } catch (err) {
-      console.error('[endGame] DB save failed (non-fatal):', err);
-    }
+    } catch (err) { console.error('[endGame] DB save failed:', err); }
 
-    // Update ELO and coins for PvP
-    let whiteEloDelta = 0;
-    let blackEloDelta = 0;
+    const winnerId = game.state.result === 'white_wins' ? game.whitePlayerId : game.state.result === 'black_wins' ? game.blackPlayerId : null;
+    const loserId = winnerId === game.whitePlayerId ? game.blackPlayerId : game.whitePlayerId;
     if (winnerId && loserId && game.blackPlayerId && !game.aiDifficulty && !game.bossId) {
       try {
         const [winner, loser] = await Promise.all([
@@ -350,10 +350,6 @@ async function endGame(io: Server, game: ActiveGame) {
         ]);
         if (winner && loser) {
           const elo = calculateElo(winner.eloRating, loser.eloRating);
-          const wDelta = elo.winner - winner.eloRating;
-          const lDelta = Math.max(800, elo.loser) - loser.eloRating;
-          if (winnerId === game.whitePlayerId) { whiteEloDelta = wDelta; blackEloDelta = lDelta; }
-          else { blackEloDelta = wDelta; whiteEloDelta = lDelta; }
           await Promise.all([
             prisma.user.update({ where: { id: winnerId }, data: { eloRating: elo.winner, coins: { increment: 50 + game.wagerAmount } } }),
             prisma.user.update({ where: { id: loserId }, data: { eloRating: Math.max(800, elo.loser), coins: { decrement: game.wagerAmount } } }),
@@ -361,32 +357,24 @@ async function endGame(io: Server, game: ActiveGame) {
             updateNemesis(winnerId, loserId),
           ]);
         }
-      } catch (err) {
-        console.error('[endGame] ELO update failed (non-fatal):', err);
-      }
+      } catch (err) { console.error('[endGame] ELO update failed:', err); }
     }
 
-    // Boss beaten
     if (game.bossId && game.state.result === 'white_wins') {
       try {
         await prisma.bossProgress.upsert({ where: { userId_bossId: { userId: game.whitePlayerId, bossId: game.bossId } }, update: { beaten: true, beatenAt: new Date(), attempts: { increment: 1 } }, create: { userId: game.whitePlayerId, bossId: game.bossId, beaten: true, beatenAt: new Date(), attempts: 1 } });
         await prisma.user.update({ where: { id: game.whitePlayerId }, data: { bossesBeaten: { increment: 1 }, coins: { increment: 150 } } });
-      } catch (err) {
-        console.error('[endGame] Boss progress update failed (non-fatal):', err);
-      }
+      } catch (err) { console.error('[endGame] Boss update failed:', err); }
     }
+  }).catch(err => console.error('[endGame] background DB error:', err));
 
-    io.to(`game:${game.id}`).emit('game:ended', {
-      result: game.state.result,
-      story,
-      gameId: game.id,
-      stats: { moves: totalMoves, captures: totalCaptures, durationSec: duration, whiteEloDelta, blackEloDelta },
-    });
-    io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
-    activeGames.delete(game.id);
-  } catch (err) {
-    console.error('[endGame] unexpected error:', err);
-    // Still clean up memory even if DB failed
-    activeGames.delete(game.id);
-  }
+  // Emit result immediately — DB work runs in background above
+  io.to(`game:${game.id}`).emit('game:ended', {
+    result: game.state.result,
+    story,
+    gameId: game.id,
+    stats: { moves: totalMoves, captures: totalCaptures, durationSec: duration, whiteEloDelta, blackEloDelta },
+  });
+  io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
+  activeGames.delete(game.id);
 }
