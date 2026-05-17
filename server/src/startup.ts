@@ -45,6 +45,12 @@ async function seedCosmetics() {
     { type: 'piece', name: 'Gold Rush', price: 600, rarity: 'legendary', cssClass: 'piece-gold' },
     { type: 'fx', name: 'Sparkle', price: 200, rarity: 'common', cssClass: 'fx-sparkle' },
     { type: 'fx', name: 'Fireworks', price: 400, rarity: 'rare', cssClass: 'fx-fireworks' },
+    { type: 'board', name: 'Crimson Felt', price: 350, rarity: 'rare', cssClass: 'board-crimson' },
+    { type: 'board', name: 'Midnight Stars', price: 550, rarity: 'epic', cssClass: 'board-stars' },
+    { type: 'piece', name: 'Ruby Red', price: 350, rarity: 'rare', cssClass: 'piece-ruby' },
+    { type: 'piece', name: 'Obsidian Dark', price: 500, rarity: 'epic', cssClass: 'piece-obsidian' },
+    { type: 'fx', name: 'Golden Trail', price: 300, rarity: 'rare', cssClass: 'fx-golden' },
+    { type: 'fx', name: 'Storm Flash', price: 600, rarity: 'legendary', cssClass: 'fx-storm' },
   ];
   for (const c of cosmetics) {
     await prisma.cosmetic.create({ data: c }).catch(() => {});
