@@ -188,6 +188,8 @@ export default function Game() {
           suppressNextSoundRef.current = true;
 
           waypoints.forEach((wp, i) => {
+            // Start from (i+1)*HOP_MS so the first hop has a visible delay,
+            // giving the browser time to paint the pre-move state first.
             setTimeout(() => {
               setState(prev => {
                 if (!prev) return prev;
@@ -205,14 +207,14 @@ export default function Game() {
               });
               setLastMove({ from: i === 0 ? target.from : waypoints[i - 1].landing, to: wp.landing });
               sfx.capture();
-            }, i * HOP_MS);
+            }, (i + 1) * HOP_MS);
           });
 
-          // Emit the move toward the end of animation so server's stateUpdate
-          // arrives after the visual lands at the final square.
+          // Emit after all hops have completed so server stateUpdate arrives
+          // after the visual animation finishes.
           setTimeout(() => {
             socket.emit('game:move', { gameId: id, move: target, userId: user.id });
-          }, waypoints.length * HOP_MS);
+          }, (waypoints.length + 1) * HOP_MS);
         } else {
           // Single-step move (or king edge case) — optimistic teleport, server confirms.
           const optimisticBoard = state.board.map((r: any[]) => r.map((p: any) => (p ? { ...p } : null)));
@@ -272,7 +274,7 @@ export default function Game() {
         }),
       });
       const data = await res.json();
-      setAiAnalysis(data.analysis);
+      setAiAnalysis(data.analysis || 'AI coach is unavailable right now. Great game though!');
     } catch {
       setAiAnalysis('AI coach is unavailable right now. Great game though!');
     } finally {
