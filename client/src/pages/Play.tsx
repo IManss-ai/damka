@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../stores/auth';
-import { useT } from '../lib/i18n';
+import { useT, useLang } from '../lib/i18n';
 
 const Icons = {
   target: (
@@ -48,6 +48,7 @@ export default function Play() {
   const { user } = useAuth();
   const nav = useNavigate();
   const t = useT();
+  const { lang } = useLang();
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [wager, setWager] = useState(0);
   const [selected, setSelected] = useState('vsAI');
@@ -242,7 +243,7 @@ export default function Play() {
               Starting...
             </span>
           ) : (
-            `Start ${mode.title}`
+            `${lang === 'ru' ? 'Начать' : 'Start'} ${mode.title}`
           )}
         </button>
 
