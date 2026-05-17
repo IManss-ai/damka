@@ -53,7 +53,7 @@ export function setupSocket(io: Server) {
         whitePlayerId: userId, whiteUsername: username,
         wagerAmount, gameMode, startTime: Date.now(),
         aiDifficulty, bossId, spectators: 0,
-        savedToDb: isPvP,
+        savedToDb: false, // flipped to true only after successful DB write
         whiteTimeMs: isBlitz ? BLITZ_MS : undefined,
         blackTimeMs: isBlitz ? BLITZ_MS : undefined,
         turnStartTime: isBlitz ? Date.now() : undefined,
@@ -71,6 +71,7 @@ export function setupSocket(io: Server) {
           await prisma.game.create({
             data: { id: gameId, whitePlayerId: userId, result: 'pending', moves: '[]', gameMode, wagerAmount },
           });
+          game.savedToDb = true; // only set after confirmed write
         } catch (err) {
           console.error('[game:create] DB save failed (non-fatal):', err);
         }
