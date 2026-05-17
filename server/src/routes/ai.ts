@@ -1,11 +1,47 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
+import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-router.post('/analyze', async (req, res) => {
+// Per-user rate limiter: 1 request/min, 10/day. In-memory.
+interface RateState { recent: number[]; dayWindow: number[]; }
+const rateMap = new Map<string, RateState>();
+const MIN_GAP_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_LIMIT = 10;
+
+function checkAiRate(userId: string): { ok: boolean; reason?: string; retryAfterMs?: number } {
+  const now = Date.now();
+  let s = rateMap.get(userId);
+  if (!s) { s = { recent: [], dayWindow: [] }; rateMap.set(userId, s); }
+  s.recent = s.recent.filter(t => now - t < MIN_GAP_MS);
+  s.dayWindow = s.dayWindow.filter(t => now - t < DAY_MS);
+  if (s.recent.length > 0) {
+    const wait = MIN_GAP_MS - (now - s.recent[s.recent.length - 1]);
+    return { ok: false, reason: 'Slow down — one analysis per minute.', retryAfterMs: wait };
+  }
+  if (s.dayWindow.length >= DAILY_LIMIT) {
+    return { ok: false, reason: 'Daily AI Coach limit reached. Resets in 24 hours.' };
+  }
+  s.recent.push(now);
+  s.dayWindow.push(now);
+  return { ok: true };
+}
+
+router.post('/analyze', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const userId = req.userId;
+  if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+  const gate = checkAiRate(userId);
+  if (!gate.ok) {
+    if (gate.retryAfterMs) res.set('Retry-After', String(Math.ceil(gate.retryAfterMs / 1000)));
+    res.status(429).json({ error: gate.reason });
+    return;
+  }
+
   const { moveHistory, result, playerColor, whitePieces, blackPieces } = req.body;
 
   if (!moveHistory) {

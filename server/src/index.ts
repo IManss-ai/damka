@@ -15,9 +15,13 @@ import aiRoutes from './routes/ai';
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true } });
+const isProd = process.env.NODE_ENV === 'production';
+const corsOrigin = isProd
+  ? (process.env.CLIENT_URL || 'https://damka-a5p3.onrender.com')
+  : 'http://localhost:5173';
+const io = new Server(httpServer, { cors: { origin: corsOrigin, credentials: true } });
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
