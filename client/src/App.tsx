@@ -12,6 +12,7 @@ import Puzzle from './pages/Puzzle';
 import Profile from './pages/Profile';
 import Shop from './pages/Shop';
 import Pro from './pages/Pro';
+import Tournament from './pages/Tournament';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Navbar from './components/Navbar';
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/profile/:username" element={<Profile />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/pro" element={<Pro />} />
+            <Route path="/tournament" element={<Tournament />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="*" element={<Navigate to="/" />} />

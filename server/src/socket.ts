@@ -34,6 +34,26 @@ interface ActiveGame {
 
 const activeGames = new Map<string, ActiveGame>();
 
+// ---- Tournament state (in-memory; 2-player demo bracket scales to 4) ----
+const TOURNAMENT_TARGET = 2;
+
+interface TournamentPlayer { userId: string; username: string; socketId: string; }
+interface TournamentMatch { p1?: TournamentPlayer; p2?: TournamentPlayer; gameId?: string; winnerId?: string | null; }
+interface TournamentBracket { semis: TournamentMatch[]; final: TournamentMatch; }
+
+interface RunningTournament {
+  id: string;
+  bracket: TournamentBracket;
+  players: TournamentPlayer[];
+  // map gameId -> bracket slot it represents ('semi-0', 'semi-1', 'final')
+  gameSlots: Map<string, 'semi-0' | 'semi-1' | 'final'>;
+}
+
+const tournamentQueue: TournamentPlayer[] = [];
+const runningTournaments = new Map<string, RunningTournament>();
+const gameToTournament = new Map<string, string>(); // gameId -> tournamentId
+// ------------------------------------------------------------------------
+
 // Wrap async socket handlers so an uncaught throw never escapes as an
 // unhandled rejection (which kills the process in Node 15+).
 function handle(fn: (...args: any[]) => Promise<void>) {
@@ -306,12 +326,119 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // ---- Tournament events ----
+    socket.on('tournament:join', ({ userId, username }: { userId: string; username: string }) => {
+      try {
+        if (tournamentQueue.find(p => p.userId === userId)) return;
+        tournamentQueue.push({ userId, username, socketId: socket.id });
+        socket.join('tournament-lobby');
+
+        io.to('tournament-lobby').emit('tournament:update', {
+          players: tournamentQueue.map(p => ({ userId: p.userId, username: p.username })),
+        });
+
+        if (tournamentQueue.length >= TOURNAMENT_TARGET) {
+          startTournament(io);
+        }
+      } catch (err) { console.error('[tournament:join error]', err); }
+    });
+
+    socket.on('tournament:leave', ({ userId }: { userId: string }) => {
+      const idx = tournamentQueue.findIndex(p => p.userId === userId);
+      if (idx !== -1) tournamentQueue.splice(idx, 1);
+      io.to('tournament-lobby').emit('tournament:update', {
+        players: tournamentQueue.map(p => ({ userId: p.userId, username: p.username })),
+      });
+    });
+
     socket.on('disconnect', () => {
       for (const [, game] of activeGames) {
         if (game.spectators > 0) game.spectators--;
       }
+      // Drop disconnected user from the tournament queue
+      const idx = tournamentQueue.findIndex(p => p.socketId === socket.id);
+      if (idx !== -1) {
+        tournamentQueue.splice(idx, 1);
+        io.to('tournament-lobby').emit('tournament:update', {
+          players: tournamentQueue.map(p => ({ userId: p.userId, username: p.username })),
+        });
+      }
     });
   });
+}
+
+// ---- Tournament helpers ----
+function startTournament(io: Server) {
+  const drawn = tournamentQueue.splice(0, TOURNAMENT_TARGET);
+  const tournamentId = uuidv4();
+
+  // 2-player demo: one "semi" that's actually the final. We keep the dual-slot
+  // shape so the client renders a real bracket and so 4-player upgrades are
+  // trivial later.
+  const onlyMatch: TournamentMatch = { p1: drawn[0], p2: drawn[1] };
+  const bracket: TournamentBracket = {
+    semis: [onlyMatch],
+    final: { p1: undefined, p2: undefined },
+  };
+
+  const t: RunningTournament = {
+    id: tournamentId,
+    bracket,
+    players: drawn,
+    gameSlots: new Map(),
+  };
+  runningTournaments.set(tournamentId, t);
+
+  // Create the first match's game via the standard ActiveGame path so all the
+  // existing move/legal-moves/resign handlers keep working.
+  const gameId = uuidv4();
+  const game: ActiveGame = {
+    id: gameId, state: createGame(),
+    whitePlayerId: drawn[0].userId, whiteUsername: drawn[0].username,
+    blackPlayerId: drawn[1].userId, blackUsername: drawn[1].username,
+    wagerAmount: 0, gameMode: 'tournament', startTime: Date.now(),
+    spectators: 0, savedToDb: false,
+  };
+  activeGames.set(gameId, game);
+  onlyMatch.gameId = gameId;
+  t.gameSlots.set(gameId, 'semi-0');
+  gameToTournament.set(gameId, tournamentId);
+
+  // Notify both players and have their sockets join the game room
+  const sockets = io.sockets.sockets;
+  for (const p of drawn) {
+    const sock = sockets.get(p.socketId);
+    if (sock) sock.join(`game:${gameId}`);
+    io.to(p.socketId).emit('tournament:start', { bracket, yourGameId: gameId });
+  }
+  io.to('tournament-lobby').emit('tournament:bracket', { bracket });
+}
+
+function advanceTournament(io: Server, gameId: string, winnerId: string | null) {
+  const tournamentId = gameToTournament.get(gameId);
+  if (!tournamentId) return;
+  const t = runningTournaments.get(tournamentId);
+  if (!t) return;
+
+  const slot = t.gameSlots.get(gameId);
+  if (slot === 'semi-0' || slot === 'semi-1') {
+    const semiIdx = slot === 'semi-0' ? 0 : 1;
+    const match = t.bracket.semis[semiIdx];
+    match.winnerId = winnerId;
+    io.to('tournament-lobby').emit('tournament:bracket', { bracket: t.bracket });
+
+    // For 2-player demo, the only semi IS the final → tear down tournament.
+    if (t.bracket.semis.length === 1) {
+      runningTournaments.delete(tournamentId);
+      gameToTournament.delete(gameId);
+      return;
+    }
+  } else if (slot === 'final') {
+    t.bracket.final.winnerId = winnerId;
+    io.to('tournament-lobby').emit('tournament:bracket', { bracket: t.bracket });
+    runningTournaments.delete(tournamentId);
+    gameToTournament.delete(gameId);
+  }
 }
 
 async function endGame(io: Server, game: ActiveGame) {
@@ -377,5 +504,14 @@ async function endGame(io: Server, game: ActiveGame) {
     stats: { moves: totalMoves, captures: totalCaptures, durationSec: duration, whiteEloDelta, blackEloDelta },
   });
   io.to('lobby').emit('lobby:gameEnded', { gameId: game.id });
+
+  // Tournament bracket: record winner if this was a tournament game
+  if (game.gameMode === 'tournament') {
+    const winnerId = game.state.result === 'white_wins' ? game.whitePlayerId
+      : game.state.result === 'black_wins' ? (game.blackPlayerId ?? null)
+      : null;
+    advanceTournament(io, game.id, winnerId);
+  }
+
   activeGames.delete(game.id);
 }

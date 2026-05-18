@@ -112,6 +112,25 @@ const T = {
     'puzzle.howToSolve': 'How to solve',
     'puzzle.howToSolveDesc': 'Click a piece, then click where to move. Find the forced win sequence for White.',
 
+    // Tournament
+    'tournament.title': 'Tournament',
+    'tournament.subtitle': 'Single-elimination bracket. Win to advance.',
+    'tournament.signInTitle': 'Sign in to compete',
+    'tournament.signInBody': 'Create an account or log in to join the tournament.',
+    'tournament.howWorks': 'How it works',
+    'tournament.rule1': 'Join the queue and wait for opponents.',
+    'tournament.rule2': 'When the bracket fills, you are auto-matched into a game.',
+    'tournament.rule3': 'Winner advances to the final.',
+    'tournament.joinBtn': 'Join Tournament',
+    'tournament.waiting': 'Waiting for players',
+    'tournament.players': 'players joined',
+    'tournament.leave': 'Leave queue',
+    'tournament.you': '(you)',
+    'tournament.bracket': 'Bracket',
+    'tournament.semifinals': 'Semifinals',
+    'tournament.final': 'Final',
+    'tournament.tbd': 'TBD',
+
     // Shop
     'shop.title': 'Shop',
     'shop.subtitle': 'Spend coins on cosmetics',
@@ -257,6 +276,25 @@ const T = {
     'puzzle.noSolvers': 'Решивших нет — будьте первым!',
     'puzzle.howToSolve': 'Как решить',
     'puzzle.howToSolveDesc': 'Кликните на фигуру, затем — куда пойти. Найдите вынужденный выигрыш для белых.',
+
+    // Tournament
+    'tournament.title': 'Турнир',
+    'tournament.subtitle': 'Турнирная сетка на выбывание. Побеждайте, чтобы проходить дальше.',
+    'tournament.signInTitle': 'Войдите, чтобы участвовать',
+    'tournament.signInBody': 'Создайте аккаунт или войдите, чтобы присоединиться к турниру.',
+    'tournament.howWorks': 'Как это работает',
+    'tournament.rule1': 'Присоединяйтесь к очереди и ждите соперников.',
+    'tournament.rule2': 'Когда сетка заполнится, вас автоматически разведут в игру.',
+    'tournament.rule3': 'Победитель проходит в финал.',
+    'tournament.joinBtn': 'Присоединиться к турниру',
+    'tournament.waiting': 'Ожидание игроков',
+    'tournament.players': 'игроков присоединилось',
+    'tournament.leave': 'Выйти из очереди',
+    'tournament.you': '(вы)',
+    'tournament.bracket': 'Сетка',
+    'tournament.semifinals': 'Полуфиналы',
+    'tournament.final': 'Финал',
+    'tournament.tbd': 'TBD',
 
     // Shop
     'shop.title': 'Магазин',

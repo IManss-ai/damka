@@ -105,14 +105,18 @@ export default function Play() {
       title: t('play.tournament'),
       sub: t('play.weeklyBracket'),
       desc: t('play.tournamentDesc'),
-      badge: t('play.soon'),
+      badge: t('play.new'),
       icon: Icons.bracket,
-      disabled: true,
+      disabled: false,
     },
   ];
 
   function startGame() {
     if (!user) { nav('/register'); return; }
+    if (selected === 'tournament') {
+      nav('/tournament');
+      return;
+    }
     setLoading(true);
     const socket = getSocket();
     socket.emit('game:create', {
