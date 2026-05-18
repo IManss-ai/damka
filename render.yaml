@@ -20,5 +20,7 @@ services:
         value: file:./dev.db
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: CLIENT_URL
         sync: false

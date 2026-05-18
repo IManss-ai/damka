@@ -275,6 +275,11 @@ export default function Game() {
           blackPieces: state.blackPieces,
         }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        setAiAnalysis(data.error || 'Please wait about a minute between analyses.');
+        return;
+      }
       const data = await res.json();
       setAiAnalysis(data.analysis || 'AI coach is unavailable right now. Great game though!');
     } catch {
@@ -283,6 +288,13 @@ export default function Game() {
       setAiLoading(false);
     }
   }
+
+  // Auto-fire analysis once the result lands so the user doesn't have to click.
+  useEffect(() => {
+    if (result && !aiAnalysis && !aiLoading) {
+      fetchAiAnalysis();
+    }
+  }, [result?.result]);
 
   function fmtTime(ms: number | null) {
     if (ms === null) return '';

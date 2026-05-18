@@ -30,18 +30,26 @@ function buildPrompt(moveHistory: any[], result: string, playerColor: string, wh
     `Move ${totalMoves - Math.min(6, totalMoves) + i + 1}: (${m.from.row},${m.from.col})→(${m.to.row},${m.to.col})${m.captures?.length ? ` [captured ${m.captures.length}]` : ''}`
   ).join('\n');
 
-  return `You are an expert Russian checkers (shashki) coach. Analyze this game briefly.
+  return `You are an expert coach for Kazakh / Russian checkers (шашки, "damka"). Rules to assume:
+- 8x8 board, 12 men per side, dark squares only.
+- Captures are MANDATORY — if a capture exists, the player must take it.
+- Multi-jump capture chains are allowed and chosen by the player.
+- A man promotes to a king when it reaches the far row.
+- Kings move and capture along any number of diagonal squares (long-range).
+- Standard win conditions: capture all opponent pieces or leave them with no legal move.
 
-Result: ${result} | Player: ${playerColor} | Remaining — White: ${whitePieces}, Black: ${blackPieces}
-Total moves: ${totalMoves} | Total captures: ${captureCount}
-Last moves:\n${lastMoves}
+Game result: ${result} | Player being coached: ${playerColor}
+Remaining pieces — White: ${whitePieces}, Black: ${blackPieces}
+Total moves: ${totalMoves} | Total captures across both sides: ${captureCount}
+Last moves (row,col coords):
+${lastMoves}
 
-Give 2-3 sentences of honest coaching feedback:
-- One specific thing done well
-- One concrete improvement to make
-- A tactical tip for the next game
+Give 2-3 short sentences of honest, specific coaching:
+- One concrete thing the player did well (cite a move if you can).
+- One concrete improvement (king activity, center control, forced trades, back-rank defense).
+- One tactical tip for next game tailored to Kazakh/Russian checkers (e.g. mandatory captures, king range).
 
-Be direct, specific, encouraging. No fluff. Respond in the same language the player would understand (Russian or English is fine).`;
+Be direct and warm. No fluff, no generic "keep practicing". Reply in the same language the player likely uses (Russian or English).`;
 }
 
 // Fallback analysis when no API key is available
@@ -58,7 +66,8 @@ function staticFallback(result: string, playerColor: string, captureCount: numbe
 async function callGemini(prompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('no key');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+  // gemini-2.0-flash is Google AI Studio's current fast tier on v1beta
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
