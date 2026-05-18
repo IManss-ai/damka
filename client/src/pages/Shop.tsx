@@ -61,11 +61,18 @@ export default function Shop() {
     setBuying(id);
     try {
       const { coins } = await api.cosmetics.buy(id);
-      setOwned(prev => new Set([...prev, id]));
       setUser({ ...user, coins: coins ?? user.coins - price });
       setMsg(`Purchased ${name}!`);
+      // Refresh from server so state never drifts (handles already-owned and
+      // multi-tab scenarios).
+      try {
+        const freshOwned: string[] = await api.cosmetics.owned();
+        setOwned(new Set(freshOwned));
+      } catch {
+        setOwned(prev => new Set([...prev, id]));
+      }
     } catch (e: any) {
-      setMsg(e.error || 'Purchase failed');
+      setMsg(e?.error || e?.message || 'Purchase failed');
     } finally {
       setBuying(null);
     }

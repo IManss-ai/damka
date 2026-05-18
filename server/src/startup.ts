@@ -10,6 +10,9 @@ export async function runStartup() {
 
     const cosmeticCount = await prisma.cosmetic.count();
     if (cosmeticCount === 0) await seedCosmetics();
+    // Always sync prices so existing DBs pick up the affordable pricing tier
+    // (users start with 500 coins — the old 300-600 prices left nothing buyable).
+    await syncCosmeticPrices();
 
     await seedMockPlayers();
     await seedCityScores();
@@ -34,26 +37,41 @@ async function seedBosses() {
   }
 }
 
+// Single source of truth for cosmetic catalog + prices. Tiered so a fresh
+// account (500 coins) can comfortably buy 2-3 items.
+//   common 50-100 | rare 150-200 | epic 250-350 | legendary 400-500
+const COSMETIC_CATALOG = [
+  { type: 'board', name: 'Classic Wood',    price: 0,   rarity: 'common',    cssClass: 'board-classic' },
+  { type: 'board', name: 'Dark Marble',     price: 200, rarity: 'rare',      cssClass: 'board-marble' },
+  { type: 'board', name: 'Ocean Blue',      price: 200, rarity: 'rare',      cssClass: 'board-ocean' },
+  { type: 'board', name: 'Neon Grid',       price: 300, rarity: 'epic',      cssClass: 'board-neon' },
+  { type: 'piece', name: 'Classic',         price: 0,   rarity: 'common',    cssClass: 'piece-classic' },
+  { type: 'piece', name: 'Crystal',         price: 300, rarity: 'epic',      cssClass: 'piece-crystal' },
+  { type: 'piece', name: 'Gold Rush',       price: 500, rarity: 'legendary', cssClass: 'piece-gold' },
+  { type: 'fx',    name: 'Sparkle',         price: 100, rarity: 'common',    cssClass: 'fx-sparkle' },
+  { type: 'fx',    name: 'Fireworks',       price: 200, rarity: 'rare',      cssClass: 'fx-fireworks' },
+  { type: 'board', name: 'Crimson Felt',    price: 200, rarity: 'rare',      cssClass: 'board-crimson' },
+  { type: 'board', name: 'Midnight Stars',  price: 350, rarity: 'epic',      cssClass: 'board-stars' },
+  { type: 'piece', name: 'Ruby Red',        price: 200, rarity: 'rare',      cssClass: 'piece-ruby' },
+  { type: 'piece', name: 'Obsidian Dark',   price: 350, rarity: 'epic',      cssClass: 'piece-obsidian' },
+  { type: 'fx',    name: 'Golden Trail',    price: 200, rarity: 'rare',      cssClass: 'fx-golden' },
+  { type: 'fx',    name: 'Storm Flash',     price: 500, rarity: 'legendary', cssClass: 'fx-storm' },
+];
+
 async function seedCosmetics() {
-  const cosmetics = [
-    { type: 'board', name: 'Classic Wood', price: 0, rarity: 'common', cssClass: 'board-classic' },
-    { type: 'board', name: 'Dark Marble', price: 300, rarity: 'rare', cssClass: 'board-marble' },
-    { type: 'board', name: 'Ocean Blue', price: 300, rarity: 'rare', cssClass: 'board-ocean' },
-    { type: 'board', name: 'Neon Grid', price: 500, rarity: 'epic', cssClass: 'board-neon' },
-    { type: 'piece', name: 'Classic', price: 0, rarity: 'common', cssClass: 'piece-classic' },
-    { type: 'piece', name: 'Crystal', price: 400, rarity: 'epic', cssClass: 'piece-crystal' },
-    { type: 'piece', name: 'Gold Rush', price: 600, rarity: 'legendary', cssClass: 'piece-gold' },
-    { type: 'fx', name: 'Sparkle', price: 200, rarity: 'common', cssClass: 'fx-sparkle' },
-    { type: 'fx', name: 'Fireworks', price: 400, rarity: 'rare', cssClass: 'fx-fireworks' },
-    { type: 'board', name: 'Crimson Felt', price: 350, rarity: 'rare', cssClass: 'board-crimson' },
-    { type: 'board', name: 'Midnight Stars', price: 550, rarity: 'epic', cssClass: 'board-stars' },
-    { type: 'piece', name: 'Ruby Red', price: 350, rarity: 'rare', cssClass: 'piece-ruby' },
-    { type: 'piece', name: 'Obsidian Dark', price: 500, rarity: 'epic', cssClass: 'piece-obsidian' },
-    { type: 'fx', name: 'Golden Trail', price: 300, rarity: 'rare', cssClass: 'fx-golden' },
-    { type: 'fx', name: 'Storm Flash', price: 600, rarity: 'legendary', cssClass: 'fx-storm' },
-  ];
-  for (const c of cosmetics) {
+  for (const c of COSMETIC_CATALOG) {
     await prisma.cosmetic.create({ data: c }).catch(() => {});
+  }
+}
+
+async function syncCosmeticPrices() {
+  // Cosmetic.name isn't unique in the schema, so use updateMany to keep prices,
+  // rarity and cssClass aligned with the catalog every boot.
+  for (const c of COSMETIC_CATALOG) {
+    await prisma.cosmetic.updateMany({
+      where: { name: c.name },
+      data: { price: c.price, rarity: c.rarity, cssClass: c.cssClass, type: c.type },
+    }).catch(() => {});
   }
 }
 

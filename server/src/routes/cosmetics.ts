@@ -27,6 +27,14 @@ router.post('/:id/buy', authMiddleware, async (req: AuthRequest, res: Response) 
   try {
     const cosmetic = await prisma.cosmetic.findUnique({ where: { id: req.params.id as string } });
     if (!cosmetic) { res.status(404).json({ error: 'Not found' }); return; }
+
+    // Already-owned guard — UserCosmetic has compound PK so a re-insert would
+    // throw P2002 and surface as a generic 500.
+    const owned = await prisma.userCosmetic.findUnique({
+      where: { userId_cosmeticId: { userId: req.userId!, cosmeticId: cosmetic.id } },
+    });
+    if (owned) { res.status(400).json({ error: 'Already owned' }); return; }
+
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user || user.coins < cosmetic.price) { res.status(400).json({ error: 'Not enough coins' }); return; }
     const updatedUser = await prisma.user.update({ where: { id: req.userId }, data: { coins: { decrement: cosmetic.price } } });
