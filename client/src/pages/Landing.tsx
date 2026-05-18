@@ -94,6 +94,7 @@ export default function Landing() {
   const [liveGames, setLiveGames] = useState<any[]>([]);
   const [cityScores, setCityScores] = useState<any[]>([]);
   const [playerCount, setPlayerCount] = useState(15);
+  const [warming, setWarming] = useState(false);
   const t = useT();
 
   useEffect(() => {
@@ -107,8 +108,31 @@ export default function Landing() {
     return () => { socket.off('lobby:games'); socket.off('lobby:gameCreated'); socket.off('lobby:gameEnded'); };
   }, []);
 
+  // Render free tier may have spun down. Probe /api/health; if it's slow,
+  // surface a friendly splash so judges see progress instead of a blank screen.
+  useEffect(() => {
+    let done = false;
+    const slowTimer = setTimeout(() => { if (!done) setWarming(true); }, 2000);
+    const maxTimer = setTimeout(() => { done = true; setWarming(false); }, 60000);
+    fetch('/api/health')
+      .catch(() => {})
+      .finally(() => { done = true; clearTimeout(slowTimer); setWarming(false); });
+    return () => { clearTimeout(slowTimer); clearTimeout(maxTimer); };
+  }, []);
+
   return (
     <div className="min-h-screen">
+      {warming && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-surface-base/95 backdrop-blur-sm">
+          <div className="text-center px-6 max-w-sm">
+            <div className="w-12 h-12 mx-auto mb-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <h2 className="font-display text-2xl font-black text-ink mb-2">Warming up the server...</h2>
+            <p className="text-ink-muted text-sm leading-relaxed">
+              The free-tier server takes ~20s to wake from idle. Hang tight — Damka is loading.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* HERO — two column: text left, board right */}
       <div className="border-b border-border">
