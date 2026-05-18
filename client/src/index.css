@@ -396,3 +396,17 @@
   45%  { opacity: 0.9; }
   100% { transform: scale(2.4); opacity: 0; }
 }
+
+/* Mobile sizing: trim button + card padding so small phones don't overflow. */
+@media (max-width: 640px) {
+  .btn-primary, .btn-secondary {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  .card {
+    padding: 1rem;
+  }
+  .card-glow {
+    padding: 1.25rem;
+  }
+}

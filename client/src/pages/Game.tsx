@@ -6,6 +6,7 @@ import { useAuth } from '../stores/auth';
 import { sfx } from '../lib/sounds';
 import { launchConfetti } from '../lib/confetti';
 import Board from '../components/Board';
+import { useSquareSize } from '../lib/useSquareSize';
 
 interface GameStats { moves: number; captures: number; durationSec: number; whiteEloDelta: number; blackEloDelta: number; }
 interface GameState { board: any[][]; currentTurn: string; result: string; moveHistory: any[]; whitePieces: number; blackPieces: number; }
@@ -36,6 +37,7 @@ export default function Game() {
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const suppressNextSoundRef = useRef(false);
 
+  const squareSize = useSquareSize();
   const socket = getSocket();
 
   useEffect(() => {
@@ -529,30 +531,32 @@ export default function Game() {
   const oppProgress = ((oppPieces ?? 12) / 12) * 100;
 
   /* ---- Game board ---- */
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex gap-6 items-start justify-center">
+  const boardPx = squareSize * 8;
 
-        {/* Board column */}
-        <div className="animate-board-entrance">
+  return (
+    <div className="max-w-5xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
+      <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 items-center xl:items-start justify-center">
+
+        {/* Board column — width locked to board size so player bars match */}
+        <div className="animate-board-entrance flex-shrink-0" style={{ width: boardPx }}>
           {/* Opponent bar */}
-          <div className="flex items-center justify-between mb-2 bg-surface-card border border-border rounded-xl px-4 py-2.5 gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-surface-raised border border-border flex items-center justify-center text-sm font-bold text-ink">
+          <div className="flex items-center justify-between mb-2 bg-surface-card border border-border rounded-xl px-3 py-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-surface-raised border border-border flex items-center justify-center text-xs font-bold text-ink shrink-0">
                 {opponentName[0]?.toUpperCase() || '?'}
               </div>
-              <span className="font-semibold text-ink text-sm">{opponentName}</span>
+              <span className="font-semibold text-ink text-xs truncate">{opponentName}</span>
               {aiThinking && (
-                <span className="flex items-center gap-1 ml-1" aria-label="Opponent is thinking">
+                <span className="flex items-center gap-1 ml-1 shrink-0" aria-label="Opponent is thinking">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '0ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '160ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" style={{ animationDelay: '320ms' }} />
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
               {whiteTimeMs !== null && (
-                <span className={`font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded ${
+                <span className={`font-mono text-xs font-bold tabular-nums px-1.5 py-0.5 rounded ${
                   state?.currentTurn !== playerColor
                     ? 'bg-accent/15 text-accent animate-pulse'
                     : 'text-ink-muted'
@@ -560,7 +564,7 @@ export default function Game() {
                   {fmtTime(playerColor === 'white' ? blackTimeMs : whiteTimeMs)}
                 </span>
               )}
-              <div className="flex gap-0.5">
+              <div className="hidden sm:flex gap-0.5">
                 {Array.from({ length: oppPieces ?? 0 }).map((_, i) => (
                   <div key={i} className={`w-2 h-2 rounded-full ${playerColor === 'white' ? 'bg-[#2c2826]' : 'bg-[#e8d9b8]'}`} />
                 ))}
@@ -569,20 +573,22 @@ export default function Game() {
             </div>
           </div>
 
-          <Board board={state.board} selectedPiece={selected} legalMoves={legalMoves}
-            onSquareClick={handleSquareClick} playerColor={playerColor} lastMove={lastMove} />
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <Board board={state.board} selectedPiece={selected} legalMoves={legalMoves}
+              onSquareClick={handleSquareClick} playerColor={playerColor} lastMove={lastMove} squareSize={squareSize} />
+          </div>
 
           {/* My bar */}
-          <div className="flex items-center justify-between mt-2 bg-surface-card border border-border rounded-xl px-4 py-2.5 gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-sm font-bold text-accent">
+          <div className="flex items-center justify-between mt-2 bg-surface-card border border-border rounded-xl px-3 py-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-xs font-bold text-accent shrink-0">
                 {user?.username?.[0]?.toUpperCase() || 'Y'}
               </div>
-              <span className="font-semibold text-ink text-sm">{isSpectator ? 'Spectating' : (user?.username || 'You')}</span>
+              <span className="font-semibold text-ink text-xs truncate">{isSpectator ? 'Spectating' : (user?.username || 'You')}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
               {whiteTimeMs !== null && (
-                <span className={`font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded ${
+                <span className={`font-mono text-xs font-bold tabular-nums px-1.5 py-0.5 rounded ${
                   isMyTurn
                     ? 'bg-accent/15 text-accent animate-pulse'
                     : 'text-ink-muted'
@@ -594,12 +600,12 @@ export default function Game() {
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full font-bold border border-accent/25 animate-pulse-glow"
+                  className="text-xs bg-accent/15 text-accent px-1.5 py-0.5 rounded-full font-bold border border-accent/25"
                 >
                   Your turn
                 </motion.span>
               )}
-              <div className="flex gap-0.5">
+              <div className="hidden sm:flex gap-0.5">
                 {Array.from({ length: myPieces ?? 0 }).map((_, i) => (
                   <div key={i} className={`w-2 h-2 rounded-full ${playerColor === 'white' ? 'bg-[#e8d9b8]' : 'bg-[#2c2826]'}`} />
                 ))}
@@ -609,10 +615,13 @@ export default function Game() {
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="w-52 space-y-3 shrink-0">
+        {/* Sidebar — side panel on XL, 2-col grid below board on mobile */}
+        <div className="w-full xl:w-52 xl:space-y-3 xl:shrink-0 max-w-xl xl:max-w-none">
+          {/* Mobile: 2-col grid for compact sidebar; desktop: same children stack vertically */}
+          <div className="grid grid-cols-2 gap-2 xl:flex xl:flex-col xl:space-y-3 xl:gap-0">
+
           {spectators > 0 && (
-            <div className="card-sm text-center text-xs text-ink-muted">
+            <div className="card-sm text-center text-xs text-ink-muted col-span-2 xl:col-span-1">
               {spectators} watching
             </div>
           )}
@@ -629,10 +638,34 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Move History */}
+          {/* Evaluation Bar */}
           <div className="card-sm">
+            <p className="section-title mb-2">Position</p>
+            <div className="flex gap-3 items-stretch">
+              <div className="flex flex-col w-5 rounded overflow-hidden border border-surface-border" style={{ height: 80 }}>
+                <div className="transition-all duration-700" style={{ height: `${100 - whiteBarPct}%`, background: '#2c2826' }} />
+                <div className="transition-all duration-700" style={{ height: `${whiteBarPct}%`, background: '#e8d9b8' }} />
+              </div>
+              <div className="flex flex-col justify-between text-xs py-0.5">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-[#2c2826] border border-[#5e564e]" />
+                  <span className="text-ink-faint">{oppPieces}</span>
+                </div>
+                <div className="text-center text-ink-faint font-mono text-[10px]">
+                  {evalVal > 0.05 ? `+${(evalVal * 100).toFixed(0)}` : evalVal < -0.05 ? `${(evalVal * 100).toFixed(0)}` : '='}
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-[#e8d9b8] border border-[#b89050]" />
+                  <span className="text-ink-faint">{myPieces}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Move History */}
+          <div className="card-sm col-span-2 xl:col-span-1">
             <p className="section-title">Move History</p>
-            <div className="max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin">
+            <div className="max-h-36 xl:max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin">
               {state.moveHistory.length === 0 && (
                 <div className="text-xs text-ink-faint py-2 text-center">No moves yet</div>
               )}
@@ -651,44 +684,12 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Evaluation Bar */}
-          <div className="card-sm">
-            <p className="section-title mb-2">Position</p>
-            <div className="flex gap-3 items-stretch">
-              {/* Vertical bar */}
-              <div className="flex flex-col w-5 rounded overflow-hidden border border-surface-border" style={{ height: 120 }}>
-                {/* Black (top) */}
-                <div
-                  className="transition-all duration-700"
-                  style={{ height: `${100 - whiteBarPct}%`, background: '#2c2826' }}
-                />
-                {/* White (bottom) */}
-                <div
-                  className="transition-all duration-700"
-                  style={{ height: `${whiteBarPct}%`, background: '#e8d9b8' }}
-                />
-              </div>
-              {/* Labels */}
-              <div className="flex flex-col justify-between text-xs py-0.5">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-[#2c2826] border border-[#5e564e]" />
-                  <span className="text-ink-faint">{oppPieces} pcs</span>
-                </div>
-                <div className="text-center text-ink-faint font-mono text-[10px]">
-                  {evalVal > 0.05 ? `+${(evalVal * 100).toFixed(0)}` : evalVal < -0.05 ? `${(evalVal * 100).toFixed(0)}` : '='}
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-[#e8d9b8] border border-[#b89050]" />
-                  <span className="text-ink-faint">{myPieces} pcs</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          </div>{/* end grid */}
 
           {!isSpectator && state.result === 'ongoing' && (
             <button
               onClick={() => setShowResignConfirm(true)}
-              className="btn-danger w-full text-sm py-2">
+              className="btn-danger w-full text-sm py-2 mt-2 xl:mt-0">
               Resign
             </button>
           )}

@@ -11,9 +11,8 @@ interface BoardProps {
   onSquareClick: (row: number, col: number) => void;
   playerColor: 'white' | 'black';
   lastMove?: { from: { row: number; col: number }; to: { row: number; col: number } } | null;
+  squareSize?: number;
 }
-
-const SQ = 62;
 
 function PieceToken({ piece, selected, isKing }: { piece: Piece; selected: boolean; isKing: boolean }) {
   return (
@@ -56,7 +55,8 @@ function PieceToken({ piece, selected, isKing }: { piece: Piece; selected: boole
   );
 }
 
-export default function Board({ board, selectedPiece, legalMoves, onSquareClick, playerColor, lastMove }: BoardProps) {
+export default function Board({ board, selectedPiece, legalMoves, onSquareClick, playerColor, lastMove, squareSize = 62 }: BoardProps) {
+  const SQ = squareSize;
   const legalTargets = new Set(legalMoves.map(m => `${m.to.row},${m.to.col}`));
   const rows = playerColor === 'white' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
   const cols = playerColor === 'white' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
@@ -92,7 +92,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
   const boardPx = SQ * 8;
 
   return (
-    <div className="select-none" style={{ display: 'inline-block' }}>
+    <div className="select-none" style={{ display: 'inline-block', touchAction: 'none' }}>
       <div
         className="relative rounded-xl overflow-hidden"
         style={{
@@ -120,6 +120,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
               <div
                 key={`${row}-${col}`}
                 onClick={() => onSquareClick(row, col)}
+                onTouchEnd={(e) => { e.preventDefault(); onSquareClick(row, col); }}
                 onMouseEnter={() => setHovered(`${row},${col}`)}
                 onMouseLeave={() => setHovered(null)}
                 style={{
@@ -130,6 +131,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
                   height: SQ,
                   backgroundColor: sqBg,
                   cursor: 'pointer',
+                  touchAction: 'manipulation',
                 }}
               >
                 {/* Hover */}
@@ -176,6 +178,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
             <div
               key={piece.id}
               onClick={() => onSquareClick(piece.row, piece.col)}
+              onTouchEnd={(e) => { e.preventDefault(); onSquareClick(piece.row, piece.col); }}
               style={{
                 position: 'absolute',
                 left: colIdx * SQ + SQ * 0.08,
@@ -187,6 +190,7 @@ export default function Board({ board, selectedPiece, legalMoves, onSquareClick,
                 zIndex: isSelected ? 30 : 20,
                 cursor: 'pointer',
                 filter: shadow,
+                touchAction: 'manipulation',
               }}
             >
               <PieceToken piece={piece} selected={isSelected} isKing={piece.type === 'king'} />
