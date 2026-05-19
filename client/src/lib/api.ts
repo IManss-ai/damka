@@ -40,4 +40,13 @@ export const api = {
     owned: () => req('/cosmetics/owned'),
     buy: (id: string) => req(`/cosmetics/${id}/buy`, { method: 'POST' }),
   },
+  friends: {
+    list: () => req('/friends'),
+    requests: () => req('/friends/requests'),
+    search: (q: string) => req(`/friends/search?q=${encodeURIComponent(q)}`),
+    sendRequest: (username: string) => req('/friends/request', { method: 'POST', body: JSON.stringify({ username }) }),
+    accept: (id: string) => req(`/friends/accept/${id}`, { method: 'POST' }),
+    decline: (id: string) => req(`/friends/decline/${id}`, { method: 'POST' }),
+    remove: (friendId: string) => req(`/friends/${friendId}`, { method: 'DELETE' }),
+  },
 };

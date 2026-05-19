@@ -21,6 +21,7 @@ import bossRoutes from './routes/bosses';
 import userRoutes from './routes/users';
 import cosmeticRoutes from './routes/cosmetics';
 import aiRoutes from './routes/ai';
+import friendRoutes from './routes/friends';
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,6 +42,7 @@ app.use('/api/bosses', bossRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cosmetics', cosmeticRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/friends', friendRoutes);
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
 
 // Catch-all Express error handler — routes that call next(err) land here

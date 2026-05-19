@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/auth';
+import { useFriends } from '../stores/friends';
+import { api } from '../lib/api';
 import { audioPrefs } from '../lib/sounds';
 import { useLang, useT } from '../lib/i18n';
 
@@ -74,12 +76,25 @@ function AudioSettings() {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { requests, setRequests } = useFriends();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { lang, setLang } = useLang();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Poll pending friend requests every 30s when logged in
+  useEffect(() => {
+    if (!user) return;
+    api.friends.requests().then(r => setRequests(r || [])).catch(() => {});
+    const interval = setInterval(() => {
+      api.friends.requests().then(r => setRequests(r || [])).catch(() => {});
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [user, setRequests]);
+
+  const pendingCount = requests.length;
 
   const NAV_LINKS = [
     { to: '/play',        label: t('nav.play') },
@@ -141,6 +156,23 @@ export default function Navbar() {
           </div>
 
           <AudioSettings />
+
+          {/* Friends icon (logged in only) */}
+          {user && (
+            <Link to="/friends" className="relative p-1.5 text-ink-muted hover:text-ink transition-colors rounded-md hover:bg-surface-raised" aria-label="Friends">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              {pendingCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-accent text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center leading-none">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* Desktop auth */}
           <div className="hidden sm:flex items-center gap-1.5">
@@ -205,6 +237,20 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {user && (
+              <Link to="/friends"
+                className={`px-3 py-2.5 text-sm font-medium rounded-md transition-colors flex items-center justify-between ${
+                  pathname === '/friends' ? 'text-ink bg-surface-raised' : 'text-ink-muted hover:text-ink hover:bg-surface-raised'
+                }`}
+              >
+                <span>Friends</span>
+                {pendingCount > 0 && (
+                  <span className="bg-accent text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">
+                    {pendingCount}
+                  </span>
+                )}
+              </Link>
+            )}
             <div className="border-t border-border mt-2 pt-2">
               {user ? (
                 <div className="flex items-center justify-between px-3 py-2">

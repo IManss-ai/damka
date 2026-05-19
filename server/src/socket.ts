@@ -34,6 +34,9 @@ interface ActiveGame {
 
 const activeGames = new Map<string, ActiveGame>();
 
+// userId → socketId for online presence and friend invites
+const userSocketMap = new Map<string, string>();
+
 // ---- Tournament state (in-memory; 2-player demo bracket scales to 4) ----
 const TOURNAMENT_TARGET = 2;
 
@@ -62,6 +65,47 @@ function handle(fn: (...args: any[]) => Promise<void>) {
 
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
+
+    // Register user presence and notify online friends
+    socket.on('user:register', handle(async ({ userId }: { userId: string }) => {
+      userSocketMap.set(userId, socket.id);
+      socket.data.userId = userId;
+      // Find accepted friends and notify them this user is online
+      const friendships = await prisma.friendship.findMany({
+        where: { status: 'accepted', OR: [{ requesterId: userId }, { receiverId: userId }] },
+      });
+      for (const f of friendships) {
+        const friendId = f.requesterId === userId ? f.receiverId : f.requesterId;
+        const friendSocketId = userSocketMap.get(friendId);
+        if (friendSocketId) io.to(friendSocketId).emit('friend:online', { userId });
+      }
+    }));
+
+    // Send a game invite to a friend
+    socket.on('friend:invite', ({ toUserId, fromUsername, fromUserId }: { toUserId: string; fromUsername: string; fromUserId: string }) => {
+      const targetSocketId = userSocketMap.get(toUserId);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('friend:invited', { fromUserId, fromUsername });
+      } else {
+        socket.emit('friend:invite:offline');
+      }
+    });
+
+    // Friend accepts game invite — create a game and redirect both
+    socket.on('friend:invite:accept', handle(async ({ fromUserId, toUserId, toUsername }: { fromUserId: string; toUserId: string; toUsername: string }) => {
+      const fromSocketId = userSocketMap.get(fromUserId);
+      if (!fromSocketId) return;
+      // Emit a redirect signal to both users — they'll create the game client-side via game:create
+      const gameId = uuidv4();
+      io.to(fromSocketId).emit('friend:invite:matched', { gameId, opponentId: toUserId, opponentUsername: toUsername, role: 'white' });
+      socket.emit('friend:invite:matched', { gameId, opponentId: fromUserId, role: 'black' });
+    }));
+
+    // Friend declines game invite
+    socket.on('friend:invite:decline', ({ fromUserId }: { fromUserId: string }) => {
+      const fromSocketId = userSocketMap.get(fromUserId);
+      if (fromSocketId) io.to(fromSocketId).emit('friend:invite:declined');
+    });
 
     // Create a new game room
     socket.on('game:create', handle(async ({ userId, username, wagerAmount = 0, gameMode = 'casual', aiDifficulty, bossId }) => {
@@ -362,6 +406,20 @@ export function setupSocket(io: Server) {
         io.to('tournament-lobby').emit('tournament:update', {
           players: tournamentQueue.map(p => ({ userId: p.userId, username: p.username })),
         });
+      }
+      // Notify friends that this user went offline
+      const userId = socket.data.userId as string | undefined;
+      if (userId && userSocketMap.get(userId) === socket.id) {
+        userSocketMap.delete(userId);
+        prisma.friendship.findMany({
+          where: { status: 'accepted', OR: [{ requesterId: userId }, { receiverId: userId }] },
+        }).then(friendships => {
+          for (const f of friendships) {
+            const friendId = f.requesterId === userId ? f.receiverId : f.requesterId;
+            const friendSocketId = userSocketMap.get(friendId);
+            if (friendSocketId) io.to(friendSocketId).emit('friend:offline', { userId });
+          }
+        }).catch(() => {});
       }
     });
   });
