@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../stores/auth';
+import { useCosmetics } from '../stores/cosmetics';
 import { useT } from '../lib/i18n';
 
 const RARITY_BADGE: Record<string, string> = {
@@ -11,7 +12,9 @@ const RARITY_BADGE: Record<string, string> = {
   common: 'text-ink-faint',
 };
 
-const TYPE_LABEL_KEYS: Record<string, 'shop.board' | 'shop.pieceSet' | 'shop.effect'> = { board: 'shop.board', piece: 'shop.pieceSet', fx: 'shop.effect' };
+const TYPE_LABEL_KEYS: Record<string, 'shop.board' | 'shop.pieceSet' | 'shop.effect'> = {
+  board: 'shop.board', piece: 'shop.pieceSet', fx: 'shop.effect',
+};
 
 function ShopPreview({ cosmetic }: { cosmetic: { type: string; cssClass: string } }) {
   if (cosmetic.type === 'board') {
@@ -45,6 +48,7 @@ export default function Shop() {
   const { user, setUser, fetchMe, logout } = useAuth();
   const nav = useNavigate();
   const t = useT();
+  const { equippedBoard, equippedPiece, equippedFx, equip } = useCosmetics();
   const [cosmetics, setCosmetics] = useState<any[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [buying, setBuying] = useState<string | null>(null);
@@ -52,11 +56,17 @@ export default function Shop() {
   const [msgType, setMsgType] = useState<'success' | 'error'>('error');
 
   useEffect(() => {
-    // Refresh user balance from server so it's never stale
     fetchMe().catch(() => {});
     api.cosmetics.list().then(setCosmetics).catch(() => {});
     api.cosmetics.owned().then((ids: string[]) => setOwned(new Set(ids))).catch(() => {});
   }, []);
+
+  function isEquipped(cssClass: string, type: string) {
+    if (type === 'board') return equippedBoard === cssClass;
+    if (type === 'piece') return equippedPiece === cssClass;
+    if (type === 'fx') return equippedFx === cssClass;
+    return false;
+  }
 
   async function buy(id: string, price: number, name: string) {
     if (!user) { nav('/login'); return; }
@@ -75,7 +85,6 @@ export default function Shop() {
       }
     } catch (e: any) {
       const errMsg: string = e?.error || e?.message || 'Purchase failed';
-      // Session expired — clear stale auth and redirect
       if (e?.status === 401 || errMsg.toLowerCase().includes('session expired') || errMsg.toLowerCase().includes('log in again')) {
         logout().catch(() => {});
         nav('/login');
@@ -86,6 +95,12 @@ export default function Shop() {
     } finally {
       setBuying(null);
     }
+  }
+
+  function handleEquip(cssClass: string, type: string, name: string) {
+    equip(type as 'board' | 'piece' | 'fx', cssClass);
+    setMsgType('success');
+    setMsg(`${name} equipped! It will appear in your next game.`);
   }
 
   const groups = ['board', 'piece', 'fx'];
@@ -121,33 +136,52 @@ export default function Shop() {
           <div key={group} className="mb-8">
             <p className="section-title mb-3">{labelKey ? t(labelKey) : group}</p>
             <div className="grid grid-cols-2 gap-3">
-              {items.map(c => (
-                <div key={c.id} className="card border border-surface-border flex flex-col gap-3">
-                  <div className="flex justify-center pt-1">
-                    <ShopPreview cosmetic={c} />
-                  </div>
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-bold text-ink text-sm">{c.name}</h3>
-                    <span className={`text-xs font-semibold capitalize ${RARITY_BADGE[c.rarity]}`}>{c.rarity}</span>
-                  </div>
-                  <p className="text-xs text-ink-faint">{labelKey ? t(labelKey) : group}</p>
-                  <div className="mt-auto pt-1">
-                    {c.price === 0 ? (
-                      <span className="text-accent font-bold text-sm">{t('shop.free')}</span>
-                    ) : owned.has(c.id) ? (
-                      <span className="text-accent font-bold text-sm">{t('shop.owned')}</span>
-                    ) : (
-                      <button
-                        onClick={() => buy(c.id, c.price, c.name)}
-                        disabled={!!buying || !user || (!!user && user.coins < c.price)}
-                        className="btn-primary text-sm w-full disabled:opacity-40"
-                      >
-                        {buying === c.id ? t('shop.buying') : `${c.price} ${t('shop.buy')}`}
-                      </button>
+              {items.map(c => {
+                const isOwned = owned.has(c.id) || c.price === 0;
+                const equipped = isEquipped(c.cssClass, c.type);
+                return (
+                  <div key={c.id} className={`card border flex flex-col gap-3 ${equipped ? 'border-accent/60 bg-accent/5' : 'border-surface-border'}`}>
+                    <div className="flex justify-center pt-1">
+                      <ShopPreview cosmetic={c} />
+                    </div>
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-bold text-ink text-sm">{c.name}</h3>
+                      <span className={`text-xs font-semibold capitalize ${RARITY_BADGE[c.rarity]}`}>{c.rarity}</span>
+                    </div>
+                    {equipped && (
+                      <div className="flex items-center gap-1 text-xs text-accent font-bold">
+                        <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                        </svg>
+                        Equipped
+                      </div>
                     )}
+                    <div className="mt-auto pt-1 flex flex-col gap-1.5">
+                      {isOwned ? (
+                        <button
+                          onClick={() => handleEquip(c.cssClass, c.type, c.name)}
+                          className={`text-sm w-full py-1.5 rounded-lg font-bold transition-colors ${
+                            equipped
+                              ? 'bg-accent/20 text-accent border border-accent/40 cursor-default'
+                              : 'btn-secondary'
+                          }`}
+                          disabled={equipped}
+                        >
+                          {equipped ? 'Equipped' : 'Equip'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => buy(c.id, c.price, c.name)}
+                          disabled={!!buying || !user || (!!user && user.coins < c.price)}
+                          className="btn-primary text-sm w-full disabled:opacity-40"
+                        >
+                          {buying === c.id ? t('shop.buying') : `${c.price} ${t('shop.buy')}`}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

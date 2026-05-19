@@ -7,6 +7,7 @@ import { sfx } from '../lib/sounds';
 import { launchConfetti } from '../lib/confetti';
 import Board from '../components/Board';
 import { useSquareSize } from '../lib/useSquareSize';
+import { useCosmetics } from '../stores/cosmetics';
 
 interface GameStats { moves: number; captures: number; durationSec: number; whiteEloDelta: number; blackEloDelta: number; }
 interface GameState { board: any[][]; currentTurn: string; result: string; moveHistory: any[]; whitePieces: number; blackPieces: number; }
@@ -39,6 +40,7 @@ export default function Game() {
 
   const squareSize = useSquareSize();
   const socket = getSocket();
+  const { equippedBoard, equippedPiece } = useCosmetics();
 
   useEffect(() => {
     if (!id || !user) return;
@@ -587,7 +589,8 @@ export default function Game() {
 
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <Board board={state.board} selectedPiece={selected} legalMoves={legalMoves}
-              onSquareClick={handleSquareClick} playerColor={playerColor} lastMove={lastMove} squareSize={squareSize} />
+              onSquareClick={handleSquareClick} playerColor={playerColor} lastMove={lastMove}
+              squareSize={squareSize} boardClass={equippedBoard} pieceClass={equippedPiece} />
           </div>
 
           {/* My bar */}
