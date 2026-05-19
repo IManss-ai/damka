@@ -64,13 +64,15 @@ httpServer.listen(PORT, async () => {
   // Run seed after server is listening so clients don't time out waiting
   await runStartup();
 
-  // Render free tier spins down after 15 min of inactivity. A 10-min self-ping
-  // keeps the process warm so judges never hit a 30-60s cold start.
+  // Render free tier spins down after 15 min of inactivity. Render only counts
+  // requests through its proxy as activity — localhost pings are invisible to it.
+  // Ping the public external URL every 5 min so the server never spins down.
   if (process.env.NODE_ENV === 'production') {
-    const keepaliveUrl = `http://localhost:${PORT}/api/health`;
+    const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.CLIENT_URL?.replace(/\/$/, '');
+    const keepaliveUrl = externalUrl ? `${externalUrl}/api/health` : `http://localhost:${PORT}/api/health`;
     setInterval(() => {
       fetch(keepaliveUrl).catch(err => console.warn('[keepalive] ping failed:', err?.message || err));
-    }, 10 * 60 * 1000);
-    console.log(`[keepalive] self-ping enabled every 10 min -> ${keepaliveUrl}`);
+    }, 5 * 60 * 1000);
+    console.log(`[keepalive] ping every 5 min -> ${keepaliveUrl}`);
   }
 });

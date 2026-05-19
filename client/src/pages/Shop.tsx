@@ -75,13 +75,21 @@ export default function Shop() {
     try {
       const { coins } = await api.cosmetics.buy(id);
       setUser({ ...user, coins: coins ?? user.coins - price });
-      setMsgType('success');
-      setMsg(`Purchased ${name}!`);
       try {
         const freshOwned: string[] = await api.cosmetics.owned();
         setOwned(new Set(freshOwned));
       } catch {
         setOwned(prev => new Set([...prev, id]));
+      }
+      // Auto-equip on purchase so it's ready to use immediately
+      const item = cosmetics.find(c => c.id === id);
+      if (item) {
+        equip(item.type as 'board' | 'piece' | 'fx', item.cssClass);
+        setMsgType('success');
+        setMsg(`${name} purchased and equipped!`);
+      } else {
+        setMsgType('success');
+        setMsg(`Purchased ${name}!`);
       }
     } catch (e: any) {
       const errMsg: string = e?.error || e?.message || 'Purchase failed';
@@ -100,7 +108,7 @@ export default function Shop() {
   function handleEquip(cssClass: string, type: string, name: string) {
     equip(type as 'board' | 'piece' | 'fx', cssClass);
     setMsgType('success');
-    setMsg(`${name} equipped! It will appear in your next game.`);
+    setMsg(`${name} equipped!`);
   }
 
   const groups = ['board', 'piece', 'fx'];

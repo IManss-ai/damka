@@ -136,31 +136,31 @@ export default function Landing() {
 
       {/* HERO — two column: text left, board right */}
       <div className="border-b border-border">
-        <div className="max-w-5xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16 md:py-20 grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55 }}>
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-accent border border-accent/25 bg-accent/8 px-3 py-1 rounded-full mb-8 tracking-widest uppercase">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-accent border border-accent/25 bg-accent/8 px-3 py-1 rounded-full mb-4 sm:mb-8 tracking-widest uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               {liveGames.length > 0 ? `${liveGames.length} games live now` : `${playerCount} players on the platform`}
             </div>
 
-            <h1 className="font-display text-6xl font-black text-ink mb-4 leading-none tracking-tight">
+            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-ink mb-4 leading-none tracking-tight">
               {t('landing.hero').split('\n')[0]}<br />
               <span style={{ color: '#7fa650' }}>{t('landing.hero').split('\n')[1]}</span>
             </h1>
 
-            <p className="text-ink-muted text-lg mb-3 leading-relaxed">
+            <p className="text-ink-muted text-base sm:text-lg mb-3 leading-relaxed">
               {t('landing.subtitle')}
             </p>
-            <p className="text-ink-faint text-sm mb-10">
+            <p className="text-ink-faint text-sm mb-6 sm:mb-10">
               {t('landing.builtFor')}
             </p>
 
             <div className="flex gap-3">
-              <Link to="/register" className="btn-primary px-8 py-3 text-base">{t('landing.playFree')}</Link>
-              <Link to="/leaderboard" className="btn-secondary px-6 py-3">{t('landing.seeRankings')}</Link>
+              <Link to="/register" className="btn-primary px-6 sm:px-8 py-3 text-base">{t('landing.playFree')}</Link>
+              <Link to="/leaderboard" className="btn-secondary px-4 sm:px-6 py-3">{t('landing.seeRankings')}</Link>
             </div>
 
-            <div className="flex gap-6 mt-10 pt-8 border-t border-border">
+            <div className="flex gap-6 mt-8 sm:mt-10 pt-6 sm:pt-8 border-t border-border">
               <div>
                 <div className="text-2xl font-black text-ink">{playerCount}+</div>
                 <div className="text-xs text-ink-faint mt-0.5">{t('landing.players')}</div>
@@ -184,7 +184,7 @@ export default function Landing() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
-            className="flex justify-center md:justify-end"
+            className="hidden sm:flex justify-center md:justify-end"
           >
             <div className="relative">
               <MiniBoard />
@@ -217,7 +217,7 @@ export default function Landing() {
       </div>
 
       {/* City + Live side by side */}
-      <div className="max-w-5xl mx-auto px-6 py-14 grid md:grid-cols-2 gap-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-14 grid md:grid-cols-2 gap-6">
         <div>
           <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-4">{t('landing.cityRivalry')}</p>
           <div className="bg-surface-card border border-border rounded-xl overflow-hidden">
@@ -266,7 +266,7 @@ export default function Landing() {
 
       {/* Features — clean grid, no emojis */}
       <div className="border-t border-b border-border bg-surface-nav">
-        <div className="max-w-5xl mx-auto px-6 py-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
           <p className="text-xs font-bold text-ink-muted uppercase tracking-widest mb-10 text-center">{t('landing.whatMakesDiff')}</p>
           <div className="grid md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
             {([
@@ -288,12 +288,12 @@ export default function Landing() {
       </div>
 
       {/* Final CTA */}
-      <div className="max-w-5xl mx-auto px-6 py-20 text-center">
-        <h2 className="font-display text-4xl font-black text-ink mb-3 leading-tight">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
+        <h2 className="font-display text-3xl sm:text-4xl font-black text-ink mb-3 leading-tight">
           {t('landing.cityNeeds')}
         </h2>
         <p className="text-ink-muted mb-8 text-base">{t('landing.cityNeedsSubtitle')}</p>
-        <Link to="/register" className="btn-primary px-14 py-3.5 text-base">{t('landing.createAccount')}</Link>
+        <Link to="/register" className="btn-primary px-8 sm:px-14 py-3.5 text-base">{t('landing.createAccount')}</Link>
       </div>
 
     </div>
