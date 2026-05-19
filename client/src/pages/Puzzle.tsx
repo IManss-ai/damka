@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import Board from '../components/Board';
 import { useT } from '../lib/i18n';
+import { useSquareSize } from '../lib/useSquareSize';
 
 export default function Puzzle() {
+  const squareSize = useSquareSize(62, 32);
   const [puzzle, setPuzzle] = useState<any>(null);
   const [ranking, setRanking] = useState<any[]>([]);
   const [puzzleBoard, setPuzzleBoard] = useState<any[][]>([]);
@@ -81,9 +83,11 @@ export default function Puzzle() {
         </div>
       )}
 
-      <div className="flex gap-8 items-start flex-wrap">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+        <div className="mx-auto md:mx-0">
         <Board board={puzzleBoard} selectedPiece={selected} legalMoves={legalMoves}
-          onSquareClick={handleSquareClick} playerColor="white" lastMove={lastMove} />
+          onSquareClick={handleSquareClick} playerColor="white" lastMove={lastMove} squareSize={squareSize} />
+        </div>
 
         <div className="flex-1 min-w-[180px] space-y-4">
           <div className="card-sm">

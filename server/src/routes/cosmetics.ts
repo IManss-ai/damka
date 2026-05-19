@@ -36,7 +36,8 @@ router.post('/:id/buy', authMiddleware, async (req: AuthRequest, res: Response) 
     if (owned) { res.status(400).json({ error: 'Already owned' }); return; }
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user || user.coins < cosmetic.price) { res.status(400).json({ error: 'Not enough coins' }); return; }
+    if (!user) { res.status(401).json({ error: 'Session expired. Please log in again.' }); return; }
+    if (user.coins < cosmetic.price) { res.status(400).json({ error: 'Not enough coins' }); return; }
     const updatedUser = await prisma.user.update({ where: { id: req.userId }, data: { coins: { decrement: cosmetic.price } } });
     await prisma.userCosmetic.create({ data: { userId: req.userId!, cosmeticId: cosmetic.id } });
     res.json({ ok: true, coins: updatedUser.coins });

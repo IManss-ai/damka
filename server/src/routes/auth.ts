@@ -43,7 +43,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     const user = await prisma.user.create({ data: { username, email: email.toLowerCase(), passwordHash, city: city || 'Almaty' } });
     const token = signToken(user.id);
     res.cookie('token', token, COOKIE_OPTS);
-    res.json({ user: { id: user.id, username: user.username, city: user.city, eloRating: user.eloRating, coins: user.coins } });
+    res.json({ user: { id: user.id, username: user.username, city: user.city, eloRating: user.eloRating, coins: user.coins, isPro: user.isPro, bossesBeaten: user.bossesBeaten, streak: user.streak } });
   } catch (e: any) {
     if (e.code === 'P2002') { res.status(400).json({ error: 'Username or email already taken' }); return; }
     res.status(500).json({ error: 'Server error' });

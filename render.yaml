@@ -1,3 +1,10 @@
+databases:
+  - name: damka-db
+    plan: free
+    databaseName: damka
+    user: damka_user
+    region: oregon
+
 services:
   - type: web
     name: damka
@@ -17,7 +24,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        value: file:./dev.db
+        fromDatabase:
+          name: damka-db
+          property: connectionString
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: GEMINI_API_KEY

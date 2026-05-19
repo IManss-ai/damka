@@ -42,29 +42,31 @@ function ShopPreview({ cosmetic }: { cosmetic: { type: string; cssClass: string 
 }
 
 export default function Shop() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, fetchMe, logout } = useAuth();
   const nav = useNavigate();
   const t = useT();
   const [cosmetics, setCosmetics] = useState<any[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [buying, setBuying] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState<'success' | 'error'>('error');
 
   useEffect(() => {
+    // Refresh user balance from server so it's never stale
+    fetchMe().catch(() => {});
     api.cosmetics.list().then(setCosmetics).catch(() => {});
     api.cosmetics.owned().then((ids: string[]) => setOwned(new Set(ids))).catch(() => {});
   }, []);
 
   async function buy(id: string, price: number, name: string) {
-    if (!user) return;
-    if (user.coins < price) { setMsg(t('shop.notEnough')); return; }
+    if (!user) { nav('/login'); return; }
+    if (user.coins < price) { setMsgType('error'); setMsg(t('shop.notEnough')); return; }
     setBuying(id);
     try {
       const { coins } = await api.cosmetics.buy(id);
       setUser({ ...user, coins: coins ?? user.coins - price });
+      setMsgType('success');
       setMsg(`Purchased ${name}!`);
-      // Refresh from server so state never drifts (handles already-owned and
-      // multi-tab scenarios).
       try {
         const freshOwned: string[] = await api.cosmetics.owned();
         setOwned(new Set(freshOwned));
@@ -72,7 +74,15 @@ export default function Shop() {
         setOwned(prev => new Set([...prev, id]));
       }
     } catch (e: any) {
-      setMsg(e?.error || e?.message || 'Purchase failed');
+      const errMsg: string = e?.error || e?.message || 'Purchase failed';
+      // Session expired — clear stale auth and redirect
+      if (e?.status === 401 || errMsg.toLowerCase().includes('session expired') || errMsg.toLowerCase().includes('log in again')) {
+        logout().catch(() => {});
+        nav('/login');
+        return;
+      }
+      setMsgType('error');
+      setMsg(errMsg);
     } finally {
       setBuying(null);
     }
@@ -96,7 +106,11 @@ export default function Shop() {
       </div>
 
       {msg && (
-        <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 text-accent text-sm mb-4">{msg}</div>
+        <div className={`border rounded-lg p-3 text-sm mb-4 ${
+          msgType === 'success'
+            ? 'bg-accent/10 border-accent/30 text-accent'
+            : 'bg-danger/10 border-danger/30 text-danger'
+        }`}>{msg}</div>
       )}
 
       {groups.map(group => {
