@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { GameState, Move } from './engine/types';
+import { GameState, Move, Board, Color } from './engine/types';
 import { createGame, makeMove, isValidMove } from './engine/game';
 import { getLegalMoves } from './engine/moves';
 import { getBestMove } from './engine/ai';
@@ -9,6 +9,7 @@ import { calculateElo } from './services/elo';
 import { addCityPoints } from './services/city';
 import { updateNemesis } from './services/nemesis';
 import { v4 as uuidv4 } from 'uuid';
+import { getBossComment } from './engine/trashTalk';
 
 const BLITZ_MS = 3 * 60 * 1000; // 3 minutes per player
 
@@ -73,6 +74,31 @@ setInterval(() => {
     }
   }
 }, 30 * 60 * 1000); // run every 30 minutes
+
+function evalScoreServer(board: Board): number {
+  let score = 0;
+  for (const row of board) {
+    for (const cell of row) {
+      if (!cell) continue;
+      const val = cell.type === 'king' ? 3 : 1;
+      const centerBonus = (Math.abs(cell.col - 3.5) < 2 && Math.abs(cell.row - 3.5) < 2) ? 0.1 : 0;
+      score += cell.color === 'white' ? (val + centerBonus) : -(val + centerBonus);
+    }
+  }
+  return score;
+}
+
+function countKings(board: Board, color: Color): number {
+  let count = 0;
+  for (const row of board) {
+    for (const cell of row) {
+      if (cell && cell.color === color && cell.type === 'king') {
+        count++;
+      }
+    }
+  }
+  return count;
+}
 
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
@@ -140,6 +166,12 @@ export function setupSocket(io: Server) {
 
       if (aiDifficulty || bossId) {
         socket.emit('game:started', { gameId, state: game.state, color: 'white', opponentName: bossId ? `Boss #${bossId}` : `AI (${aiDifficulty})` });
+        const startComment = getBossComment(bossId, aiDifficulty, 'game_start');
+        if (startComment) {
+          setTimeout(() => {
+            io.to(`game:${gameId}`).emit('game:comment', { comment: startComment });
+          }, 1000);
+        }
       } else {
         // PvP — save pending game to DB so it survives server restarts
         try {
@@ -293,12 +325,41 @@ export function setupSocket(io: Server) {
         return;
       }
 
+      const scoreBefore = evalScoreServer(game.state.board);
       game.state = makeMove(game.state, move);
+      const scoreAfter = evalScoreServer(game.state.board);
+
       io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: move, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
+
+      if (game.state.result !== 'ongoing') {
+        await endGame(io, game);
+        return;
+      }
+
+      // Check player moves for blunders or captures
+      if (game.bossId || game.aiDifficulty) {
+        let comment = '';
+        if (move.captures && move.captures.length > 0) {
+          comment = getBossComment(game.bossId, game.aiDifficulty, 'player_capture');
+        } else if (scoreBefore - scoreAfter > 0.15) {
+          comment = getBossComment(game.bossId, game.aiDifficulty, 'player_blunder');
+        }
+        if (comment) {
+          io.to(`game:${gameId}`).emit('game:comment', { comment });
+        }
+      }
 
       // AI response — variable delay by difficulty
       if (game.state.result === 'ongoing' && (game.aiDifficulty || game.bossId)) {
         io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: true });
+
+        // 30% chance to trash-talk while thinking
+        if (Math.random() < 0.3) {
+          const thinkComment = getBossComment(game.bossId, game.aiDifficulty, 'thinking');
+          if (thinkComment) {
+            io.to(`game:${gameId}`).emit('game:comment', { comment: thinkComment });
+          }
+        }
 
         const baseByDifficulty: Record<string, number> = { easy: 900, medium: 1200, hard: 1700 };
         const base = baseByDifficulty[game.aiDifficulty || 'medium'] ?? 1200;
@@ -309,9 +370,26 @@ export function setupSocket(io: Server) {
             try {
               const aiMove = getBestMove(game.state.board, 'black', game.aiDifficulty || 'medium', game.bossId);
               if (aiMove) {
+                const hadKingBefore = countKings(game.state.board, 'black');
+                const hadCaptures = aiMove.captures && aiMove.captures.length > 0;
+
                 game.state = makeMove(game.state, aiMove);
+
+                const hasKingAfter = countKings(game.state.board, 'black');
+                const kingMade = hasKingAfter > hadKingBefore;
+
                 io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
                 io.to(`game:${gameId}`).emit('game:stateUpdate', { state: game.state, lastMove: aiMove });
+
+                let comment = '';
+                if (kingMade) {
+                  comment = getBossComment(game.bossId, game.aiDifficulty, 'king_made');
+                } else if (hadCaptures) {
+                  comment = getBossComment(game.bossId, game.aiDifficulty, 'bot_capture');
+                }
+                if (comment) {
+                  io.to(`game:${gameId}`).emit('game:comment', { comment });
+                }
               } else {
                 io.to(`game:${gameId}`).emit('game:aiThinking', { thinking: false });
               }
@@ -372,6 +450,20 @@ export function setupSocket(io: Server) {
         blackUsername: `AI (${difficulty})`,
       });
     }));
+
+    socket.on('game:sendReaction', ({ gameId, reaction }: { gameId: string; reaction: string }) => {
+      io.to(`game:${gameId}`).emit('game:reaction', { reaction, id: uuidv4() });
+    });
+
+    socket.on('game:reviewSuggestMove', ({ board, turn }: { board: Board; turn: Color }, callback: (move: Move | null) => void) => {
+      try {
+        const bestMove = getBestMove(board, turn, 'hard');
+        callback(bestMove);
+      } catch (err) {
+        console.error('[game:reviewSuggestMove error]', err);
+        callback(null);
+      }
+    });
 
     // Lobby: get active games
     socket.on('lobby:join', () => {
@@ -572,6 +664,18 @@ async function endGame(io: Server, game: ActiveGame) {
       } catch (err) { console.error('[endGame] Boss update failed:', err); }
     }
   }).catch(err => console.error('[endGame] background DB error:', err));
+
+  // Emit victory or defeat commentary if PvE
+  if (game.bossId || game.aiDifficulty) {
+    const comment = getBossComment(
+      game.bossId,
+      game.aiDifficulty,
+      game.state.result === 'white_wins' ? 'defeat' : 'victory'
+    );
+    if (comment) {
+      io.to(`game:${game.id}`).emit('game:comment', { comment });
+    }
+  }
 
   // Emit result immediately — DB work runs in background above
   io.to(`game:${game.id}`).emit('game:ended', {

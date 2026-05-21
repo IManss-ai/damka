@@ -410,3 +410,82 @@
     padding: 1.25rem;
   }
 }
+
+/* ==========================================================================
+   3D Board, Screen Shake, and Floating Emotes
+   ========================================================================== */
+
+.perspective-container {
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+}
+
+.board-3d-active {
+  transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg);
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.6s ease;
+}
+
+@keyframes boardShake {
+  0% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(0, 0); }
+  20% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(-4px, 3px); }
+  40% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(4px, -2px); }
+  60% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(-3px, -3px); }
+  80% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(3px, 2px); }
+  100% { transform: rotateX(24deg) rotateY(0deg) rotateZ(-12deg) translate(0, 0); }
+}
+
+@keyframes boardShakeFlat {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 3px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -3px); }
+  80% { transform: translate(3px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.animate-shake {
+  animation: boardShake 0.2s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+div:not(.board-3d-active).animate-shake {
+  animation: boardShakeFlat 0.2s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes floatEmote {
+  0% {
+    transform: translateY(100%) translateX(0) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(70%) translateX(-10px) scale(1.1);
+  }
+  30% {
+    transform: translateY(20%) translateX(15px) scale(1);
+  }
+  60% {
+    transform: translateY(-80px) translateX(-20px) scale(0.95);
+  }
+  100% {
+    transform: translateY(-260px) translateX(10px) scale(1.4);
+    opacity: 0;
+  }
+}
+
+.floating-emote {
+  position: absolute;
+  bottom: 0;
+  font-size: 32px;
+  pointer-events: none;
+  z-index: 50;
+  animation: floatEmote 2.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+/* Extra premium Z-depth animation for pieces during entry */
+@keyframes pieceDrop3D {
+  0% { transform: translateZ(100px); opacity: 0; }
+  100% { transform: translateZ(10px); opacity: 1; }
+}
+.animate-board-piece-3d {
+  animation: pieceDrop3D 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
