@@ -1,9 +1,15 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useT } from '../lib/i18n';
 
 export default function Footer() {
+  const { pathname } = useLocation();
   const year = new Date().getFullYear();
   const t = useT();
+
+  if (pathname.startsWith('/game/')) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-border bg-surface-nav mt-16">
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-ink-faint">

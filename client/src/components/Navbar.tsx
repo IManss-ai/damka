@@ -68,6 +68,35 @@ function AudioSettings() {
               className="w-full accent-accent disabled:opacity-40"
             />
           </label>
+          <div className="mt-4 pt-3 border-t border-border">
+            <span className="text-xs text-ink-muted block mb-1.5 font-medium">Sound Pack</span>
+            <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-surface-raised rounded-lg border border-border text-xs">
+              <button
+                type="button"
+                onClick={() => audioPrefs.setSfxPack('classic')}
+                disabled={prefs.muted}
+                className={`py-1 rounded-md transition-all font-semibold ${
+                  prefs.sfxPack === 'classic'
+                    ? 'bg-surface-card text-ink shadow-sm'
+                    : 'text-ink-muted hover:text-ink disabled:opacity-40'
+                }`}
+              >
+                Classic
+              </button>
+              <button
+                type="button"
+                onClick={() => audioPrefs.setSfxPack('dombra')}
+                disabled={prefs.muted}
+                className={`py-1 rounded-md transition-all font-semibold flex items-center justify-center gap-1 ${
+                  prefs.sfxPack === 'dombra'
+                    ? 'bg-accent/15 text-accent shadow-sm border border-accent/25'
+                    : 'text-ink-muted hover:text-ink disabled:opacity-40'
+                }`}
+              >
+                <span>🎸 Dombra</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

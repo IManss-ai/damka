@@ -295,6 +295,8 @@
 .board-ocean   .sq-dark  { background: #2b5878; }
 .board-neon    .sq-light { background: #1a1820; }
 .board-neon    .sq-dark  { background: #8b30c4; box-shadow: inset 0 0 8px rgba(255,0,255,0.5); }
+.board-steppe  .sq-light { background: #f2e3c6; }
+.board-steppe  .sq-dark  { background: #4b6b56; }
 
 .piece-thumb {
   width: 36px;
@@ -305,6 +307,7 @@
 .piece-thumb.piece-classic { background: linear-gradient(135deg, #f8f0dc, #c8a870); border: 3px solid #b89050; }
 .piece-thumb.piece-crystal { background: linear-gradient(135deg, #b8e0ff, #5080c0); border: 3px solid #80a0d0; box-shadow: 0 0 12px rgba(120,180,255,0.5); }
 .piece-thumb.piece-gold    { background: linear-gradient(135deg, #ffe080, #b8860b); border: 3px solid #d4a017; box-shadow: 0 0 16px rgba(255,200,80,0.55); }
+.piece-thumb.piece-dombra  { background: linear-gradient(135deg, #e3c498, #997548); border: 3px solid #846137; box-shadow: 0 0 10px rgba(132, 97, 55, 0.45); }
 
 .fx-thumb {
   width: 88px;

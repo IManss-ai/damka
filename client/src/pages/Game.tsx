@@ -703,7 +703,7 @@ export default function Game() {
 
   return (
     <div className="max-w-5xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
-      <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 items-center xl:items-start justify-center">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center">
 
         {/* Board column — width locked to board size so player bars match */}
         <div className="animate-board-entrance flex-shrink-0" style={{ width: boardPx }}>
@@ -744,12 +744,12 @@ export default function Game() {
             <AnimatePresence>
               {activeComment && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                  initial={{ opacity: 0, scale: 0.8, y: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                  className="absolute bottom-full mb-2 left-6 bg-accent text-white text-xs px-3 py-2 rounded-xl shadow-xl z-30 font-medium max-w-[280px] border border-white/10"
+                  className="absolute top-full mt-2.5 left-4 bg-accent text-white text-xs px-3 py-2 rounded-xl shadow-xl z-40 font-medium max-w-[280px] border border-white/10"
                 >
-                  <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-accent rotate-45 border-r border-b border-white/10" />
+                  <div className="absolute -top-1.5 left-5 w-3 h-3 bg-accent rotate-45 border-l border-t border-white/10" />
                   💬 {activeComment}
                 </motion.div>
               )}
@@ -786,38 +786,8 @@ export default function Game() {
             />
           </div>
 
-          {/* Controls below board */}
-          <div className="flex flex-wrap items-center justify-between mt-3 bg-surface-card border border-border rounded-xl px-4 py-2.5 gap-3">
-            {/* 3D toggle button */}
-            <button
-              onClick={() => { setIs3D(!is3D); sfx.tick(); }}
-              className={`text-xs px-3 py-1.5 rounded-lg font-bold border transition-all ${
-                is3D
-                  ? 'bg-accent/20 border-accent text-accent'
-                  : 'bg-surface-raised border-border text-ink-muted hover:text-ink'
-              }`}
-            >
-              Perspective 3D: {is3D ? 'ON' : 'OFF'}
-            </button>
-
-            {/* Reactions tray */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-ink-faint mr-1">React:</span>
-              {['👏', '🔥', '🤔', '😢', '👑'].map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => { sendReaction(emoji); sfx.tick(); }}
-                  className="text-lg hover:scale-125 transition-transform active:scale-95 px-1"
-                  title={`Send ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* My bar */}
-          <div className="flex items-center justify-between mt-3 bg-surface-card border border-border rounded-xl px-3 py-2 gap-2">
+          {/* My bar (directly below the board) */}
+          <div className="flex items-center justify-between mt-2.5 bg-surface-card border border-border rounded-xl px-3 py-2 gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-xs font-bold text-accent shrink-0">
                 {user?.username?.[0]?.toUpperCase() || 'Y'}
@@ -851,10 +821,51 @@ export default function Game() {
               <span className="text-xs text-ink-muted font-mono w-4 text-right">{myPieces}</span>
             </div>
           </div>
+
+          {/* Controls Row (3D Toggle + Reactions + Resign) */}
+          <div className="flex flex-wrap items-center justify-between mt-2.5 bg-surface-card border border-border rounded-xl px-4 py-2 gap-3">
+            <div className="flex items-center gap-2">
+              {/* 3D toggle button */}
+              <button
+                onClick={() => { setIs3D(!is3D); sfx.tick(); }}
+                className={`text-xs px-3 py-1.5 rounded-lg font-bold border transition-all ${
+                  is3D
+                    ? 'bg-accent/20 border-accent text-accent'
+                    : 'bg-surface-raised border-border text-ink-muted hover:text-ink'
+                }`}
+              >
+                3D: {is3D ? 'ON' : 'OFF'}
+              </button>
+
+              {!isSpectator && state.result === 'ongoing' && !isReviewMode && (
+                <button
+                  onClick={() => { setShowResignConfirm(true); sfx.tick(); }}
+                  className="text-xs px-3 py-1.5 rounded-lg font-bold border border-danger/30 text-danger hover:bg-danger/10 transition-all"
+                >
+                  Resign
+                </button>
+              )}
+            </div>
+
+            {/* Reactions tray */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-bold text-ink-faint mr-1">React:</span>
+              {['👏', '🔥', '🤔', '😢', '👑'].map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => { sendReaction(emoji); sfx.tick(); }}
+                  className="text-lg hover:scale-125 transition-transform active:scale-95 px-1"
+                  title={`Send ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Sidebar — side panel on XL, 2-col grid below board on mobile */}
-        <div className="w-full xl:w-52 xl:space-y-3 xl:shrink-0 max-w-xl xl:max-w-none">
+        {/* Sidebar — side panel on LG, 2-col grid below board on mobile */}
+        <div className="w-full lg:w-52 lg:space-y-3 lg:shrink-0 max-w-xl lg:max-w-none">
           {isReviewMode ? (
             <div className="bg-surface-card border border-border rounded-2xl p-4 space-y-4 shadow-xl text-left">
               <div>
@@ -930,9 +941,9 @@ export default function Game() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 xl:flex xl:flex-col xl:space-y-3 xl:gap-0">
+            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:space-y-3 lg:gap-0">
               {spectators > 0 && (
-                <div className="card-sm text-center text-xs text-ink-muted col-span-2 xl:col-span-1">
+                <div className="card-sm text-center text-xs text-ink-muted col-span-2 lg:col-span-1">
                   {spectators} watching
                 </div>
               )}
@@ -974,9 +985,9 @@ export default function Game() {
               </div>
 
               {/* Move History */}
-              <div className="card-sm col-span-2 xl:col-span-1">
+              <div className="card-sm col-span-2 lg:col-span-1">
                 <p className="section-title">Move History</p>
-                <div className="max-h-36 xl:max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin">
+                <div className="max-h-36 lg:max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin">
                   {state.moveHistory.length === 0 && (
                     <div className="text-xs text-ink-faint py-2 text-center">No moves yet</div>
                   )}
@@ -995,15 +1006,6 @@ export default function Game() {
                 </div>
               </div>
             </div>
-          )}
-
-          {!isSpectator && state.result === 'ongoing' && !isReviewMode && (
-            <button
-              onClick={() => setShowResignConfirm(true)}
-              className="btn-danger w-full text-sm py-2 mt-2 xl:mt-0"
-            >
-              Resign
-            </button>
           )}
         </div>
       </div>

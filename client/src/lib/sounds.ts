@@ -2,20 +2,25 @@ let ctx: AudioContext | null = null;
 
 const STORAGE_KEY = 'damka.audio';
 
-interface AudioPrefs { muted: boolean; volume: number; }
+interface AudioPrefs {
+  muted: boolean;
+  volume: number;
+  sfxPack: 'classic' | 'dombra';
+}
 
 function readPrefs(): AudioPrefs {
-  if (typeof localStorage === 'undefined') return { muted: false, volume: 1 };
+  if (typeof localStorage === 'undefined') return { muted: false, volume: 1, sfxPack: 'classic' };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { muted: false, volume: 1 };
+    if (!raw) return { muted: false, volume: 1, sfxPack: 'classic' };
     const parsed = JSON.parse(raw);
     return {
       muted: !!parsed.muted,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : 1,
+      sfxPack: parsed.sfxPack === 'dombra' ? 'dombra' : 'classic',
     };
   } catch {
-    return { muted: false, volume: 1 };
+    return { muted: false, volume: 1, sfxPack: 'classic' };
   }
 }
 
@@ -31,6 +36,7 @@ export const audioPrefs = {
   get(): AudioPrefs { return { ...prefs }; },
   setMuted(m: boolean) { prefs = { ...prefs, muted: m }; persist(); },
   setVolume(v: number) { prefs = { ...prefs, volume: Math.max(0, Math.min(1, v)) }; persist(); },
+  setSfxPack(pack: 'classic' | 'dombra') { prefs = { ...prefs, sfxPack: pack }; persist(); },
   toggleMute() { prefs = { ...prefs, muted: !prefs.muted }; persist(); },
   subscribe(fn: (p: AudioPrefs) => void) { listeners.add(fn); return () => listeners.delete(fn); },
 };
@@ -44,6 +50,8 @@ function getCtx(): AudioContext {
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
+
+// --- Classic Chess/Checkers Sounds ---
 
 // Wooden checker hitting the board: low-freq thud + brief click transient
 function woodClack(gain = 0.55) {
@@ -161,24 +169,141 @@ function chime(freqs: number[], duration: number, gain = 0.2) {
   });
 }
 
+// --- Synthesised Kazakh Dombra String Plucks ---
+
+function playDombraPluck(freq: number, duration: number, gainVal = 0.45) {
+  gainVal *= gainMult();
+  if (gainVal <= 0) return;
+  const ac = getCtx();
+  const now = ac.currentTime;
+
+  // 1. Pluck Transient (Simulates finger tip hitting the string)
+  const noiseBufSize = Math.floor(ac.sampleRate * 0.008); // 8ms burst
+  const noiseBuf = ac.createBuffer(1, noiseBufSize, ac.sampleRate);
+  const noiseData = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseBufSize; i++) {
+    noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseBufSize);
+  }
+  const noiseSrc = ac.createBufferSource();
+  noiseSrc.buffer = noiseBuf;
+
+  const noiseGain = ac.createGain();
+  noiseGain.gain.setValueAtTime(gainVal * 0.25, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
+
+  // 2. Fundamental String Resonator (Triangle wave)
+  const osc = ac.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, now);
+  // Dombra tension drop bend (gives characteristic "ping" quality)
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.992, now + 0.06);
+
+  // 3. Sharp Harmonic (Sawtooth wave representing bright nylon sound)
+  const oscHarmonic = ac.createOscillator();
+  oscHarmonic.type = 'sawtooth';
+  oscHarmonic.frequency.setValueAtTime(freq * 2, now);
+
+  const harmonicGain = ac.createGain();
+  harmonicGain.gain.setValueAtTime(gainVal * 0.12, now);
+  // Harmonic decays much faster than fundamental
+  harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.25);
+
+  // 4. Lowpass resonant sweep filter
+  const filter = ac.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(freq * 2.8, now);
+  filter.frequency.exponentialRampToValueAtTime(freq * 0.6, now + duration);
+  filter.Q.value = 2.5; // string twang factor
+
+  // 5. Main gain envelope
+  const mainGain = ac.createGain();
+  mainGain.gain.setValueAtTime(gainVal * 0.7, now);
+  mainGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+  // Connections
+  noiseSrc.connect(noiseGain);
+  noiseGain.connect(filter);
+
+  osc.connect(filter);
+  
+  oscHarmonic.connect(harmonicGain);
+  harmonicGain.connect(filter);
+
+  filter.connect(mainGain);
+  mainGain.connect(ac.destination);
+
+  // Trigger nodes
+  noiseSrc.start(now);
+  osc.start(now);
+  oscHarmonic.start(now);
+
+  osc.stop(now + duration + 0.05);
+  oscHarmonic.stop(now + duration + 0.05);
+}
+
+function playDombraStrum(notes: number[], duration: number, gainVal = 0.45, strumDelayMs = 20) {
+  notes.forEach((f, i) => {
+    setTimeout(() => {
+      playDombraPluck(f, duration, gainVal);
+    }, i * strumDelayMs);
+  });
+}
+
 export const sfx = {
   select() {
     softClick(0.25);
   },
   move() {
-    woodClack(0.55);
+    if (prefs.sfxPack === 'dombra') {
+      // D4 (293.66) and G4 (392.00) light strum
+      playDombraStrum([293.66, 392.00], 0.35, 0.45, 15);
+    } else {
+      woodClack(0.55);
+    }
   },
   capture() {
-    woodClackDouble(0.6);
+    if (prefs.sfxPack === 'dombra') {
+      // Rapid back-and-forth strum: first down, then up
+      playDombraStrum([293.66, 392.00], 0.35, 0.5, 12);
+      setTimeout(() => {
+        playDombraStrum([392.00, 587.33], 0.3, 0.45, 10);
+      }, 70);
+    } else {
+      woodClackDouble(0.6);
+    }
   },
   king() {
-    chime([523, 659, 784, 880], 0.22, 0.18);
+    if (prefs.sfxPack === 'dombra') {
+      // Ascending arpeggio strum
+      playDombraStrum([293.66, 392.00, 587.33], 0.5, 0.55, 30);
+      setTimeout(() => {
+        playDombraPluck(587.33, 0.8, 0.5);
+      }, 100);
+    } else {
+      chime([523, 659, 784, 880], 0.22, 0.18);
+    }
   },
   win() {
-    chime([523, 659, 784, 1047, 1175], 0.28, 0.2);
+    if (prefs.sfxPack === 'dombra') {
+      // Upbeat Dombra fanfare strum sequence
+      playDombraStrum([293.66, 392.00], 0.4, 0.5, 15);
+      setTimeout(() => playDombraStrum([329.63, 440.00], 0.4, 0.5, 15), 140);
+      setTimeout(() => playDombraStrum([392.00, 587.33], 0.45, 0.5, 15), 280);
+      setTimeout(() => playDombraStrum([587.33, 784.00], 0.6, 0.6, 12), 420);
+    } else {
+      chime([523, 659, 784, 1047, 1175], 0.28, 0.2);
+    }
   },
   lose() {
-    chime([392, 349, 294, 247], 0.25, 0.15);
+    if (prefs.sfxPack === 'dombra') {
+      // Mournful descending sequence
+      playDombraPluck(440.00, 0.4, 0.4);
+      setTimeout(() => playDombraPluck(392.00, 0.4, 0.4), 220);
+      setTimeout(() => playDombraPluck(329.63, 0.45, 0.4), 440);
+      setTimeout(() => playDombraPluck(293.66, 0.8, 0.5), 660);
+    } else {
+      chime([392, 349, 294, 247], 0.25, 0.15);
+    }
   },
   tick() {
     softClick(0.15);

@@ -54,6 +54,12 @@ const PIECE_STYLES: Record<string, {
     blackGrad: 'linear-gradient(135deg, #3a3a4a 0%, #1a1a28 100%)',
     blackBorder: '#5a5a7a', blackShine: 'rgba(120,120,180,0.2)',
   },
+  'piece-dombra': {
+    whiteGrad: 'linear-gradient(135deg, #e3c498 0%, #c19e70 50%, #997548 100%)',
+    whiteBorder: '#846137', whiteShine: 'rgba(255,255,255,0.45)',
+    blackGrad: 'linear-gradient(135deg, #6c4e31 0%, #48311e 50%, #2b1b10 100%)',
+    blackBorder: '#23150b', blackShine: 'rgba(255,255,255,0.15)',
+  },
 };
 
 function PieceToken({ piece, selected, isKing, pieceClass, is3D }: {
@@ -250,7 +256,7 @@ export default function Board({
   return (
     <div 
       className={clsx("select-none transition-all duration-500", is3D && "perspective-container")} 
-      style={{ display: 'inline-block', touchAction: 'none', padding: is3D ? '24px 36px' : '0px' }}
+      style={{ display: 'inline-block', touchAction: 'none', padding: is3D ? (window.innerWidth < 640 ? '12px 12px' : '24px 36px') : '0px' }}
     >
       <div
         ref={boardRef}

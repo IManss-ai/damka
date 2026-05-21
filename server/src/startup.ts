@@ -56,6 +56,8 @@ const COSMETIC_CATALOG = [
   { type: 'piece', name: 'Obsidian Dark',   price: 350, rarity: 'epic',      cssClass: 'piece-obsidian' },
   { type: 'fx',    name: 'Golden Trail',    price: 200, rarity: 'rare',      cssClass: 'fx-golden' },
   { type: 'fx',    name: 'Storm Flash',     price: 500, rarity: 'legendary', cssClass: 'fx-storm' },
+  { type: 'board', name: 'Kazakh Steppe',   price: 150, rarity: 'rare',      cssClass: 'board-steppe' },
+  { type: 'piece', name: 'Dombra Wood',     price: 200, rarity: 'rare',      cssClass: 'piece-dombra' },
 ];
 
 async function seedCosmetics() {
@@ -65,13 +67,16 @@ async function seedCosmetics() {
 }
 
 async function syncCosmeticPrices() {
-  // Cosmetic.name isn't unique in the schema, so use updateMany to keep prices,
-  // rarity and cssClass aligned with the catalog every boot.
   for (const c of COSMETIC_CATALOG) {
-    await prisma.cosmetic.updateMany({
-      where: { name: c.name },
-      data: { price: c.price, rarity: c.rarity, cssClass: c.cssClass, type: c.type },
-    }).catch(() => {});
+    const existing = await prisma.cosmetic.findFirst({ where: { name: c.name } });
+    if (existing) {
+      await prisma.cosmetic.updateMany({
+        where: { name: c.name },
+        data: { price: c.price, rarity: c.rarity, cssClass: c.cssClass, type: c.type },
+      }).catch(() => {});
+    } else {
+      await prisma.cosmetic.create({ data: c }).catch(() => {});
+    }
   }
 }
 
