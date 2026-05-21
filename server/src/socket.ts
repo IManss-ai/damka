@@ -68,7 +68,7 @@ function handle(fn: (...args: any[]) => Promise<void>) {
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, game] of activeGames) {
-    if ((game.aiDifficulty || game.bossId) && game.startTime < cutoff) {
+    if (game.startTime < cutoff) {
       activeGames.delete(id);
     }
   }
@@ -265,7 +265,11 @@ export function setupSocket(io: Server) {
       const isWhite = game.whitePlayerId === userId && game.state.currentTurn === 'white';
       const isBlack = game.blackPlayerId === userId && game.state.currentTurn === 'black';
       if (!isWhite && !isBlack) return;
-      if (!isValidMove(game.state, move)) { socket.emit('game:invalidMove'); return; }
+      if (!isValidMove(game.state, move)) {
+        socket.emit('game:invalidMove');
+        socket.emit('game:stateUpdate', { state: game.state, whiteTimeMs: game.whiteTimeMs, blackTimeMs: game.blackTimeMs });
+        return;
+      }
 
       // Blitz clock: deduct elapsed time for the player who just moved
       if (game.whiteTimeMs !== undefined && game.blackTimeMs !== undefined && game.turnStartTime !== undefined) {

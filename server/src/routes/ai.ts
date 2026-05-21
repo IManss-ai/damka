@@ -88,7 +88,7 @@ async function callAnthropic(prompt: string): Promise<string> {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-3-5-haiku-latest',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],
     }),

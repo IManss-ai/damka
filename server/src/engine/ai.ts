@@ -37,8 +37,8 @@ function minimax(board: Board, depth: number, alpha: number, beta: number, maxim
   }
 }
 
-const DEPTH_MAP = { easy: 2, medium: 4, hard: 6 };
-const BOSS_DEPTHS: Record<number, number> = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 };
+const DEPTH_MAP = { easy: 2, medium: 4, hard: 5 };
+const BOSS_DEPTHS: Record<number, number> = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 5 };
 
 export function getBestMove(board: Board, color: Color, difficulty: 'easy' | 'medium' | 'hard' = 'medium', bossId?: number): Move | null {
   const moves = getLegalMoves(board, color);

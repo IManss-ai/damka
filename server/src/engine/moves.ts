@@ -24,8 +24,9 @@ function getCaptureMoves(board: Board, piece: Piece, visited: Set<string> = new 
             newBoard[enemy.row][enemy.col] = null;
             const movedPiece = { ...piece, row: r, col: c };
             newBoard[r][c] = movedPiece;
-            visited.add(key);
-            const further = getCaptureMoves(newBoard, movedPiece, new Set(visited));
+            const nextVisited = new Set(visited);
+            nextVisited.add(key);
+            const further = getCaptureMoves(newBoard, movedPiece, nextVisited);
             if (further.length === 0) {
               captures.push({ from: { row: piece.row, col: piece.col }, to: { row: r, col: c }, captures: [{ row: enemy.row, col: enemy.col }] });
             } else {
@@ -50,8 +51,9 @@ function getCaptureMoves(board: Board, piece: Piece, visited: Set<string> = new 
           newBoard[mr][mc] = null;
           const movedPiece = { ...piece, row: lr, col: lc };
           newBoard[lr][lc] = movedPiece;
-          visited.add(key);
-          const further = getCaptureMoves(newBoard, movedPiece, new Set(visited));
+          const nextVisited = new Set(visited);
+          nextVisited.add(key);
+          const further = getCaptureMoves(newBoard, movedPiece, nextVisited);
           if (further.length === 0) {
             captures.push({ from: { row: piece.row, col: piece.col }, to: { row: lr, col: lc }, captures: [{ row: mr, col: mc }] });
           } else {
