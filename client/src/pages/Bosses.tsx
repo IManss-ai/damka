@@ -12,10 +12,12 @@ export default function Bosses() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [bosses, setBosses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const t = useT();
 
   useEffect(() => {
-    api.bosses.list().then(setBosses).catch(() => {});
+    setLoading(true);
+    api.bosses.list().then(setBosses).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
 
   function challengeBoss(boss: any) {
@@ -36,8 +38,16 @@ export default function Bosses() {
         </div>
       )}
 
+      {loading && (
+        <div className="space-y-3">
+          {Array.from({length:5}).map((_,i) => (
+            <div key={i} className="card border border-surface-border animate-pulse h-20 rounded-xl bg-surface-raised/50" />
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {(bosses.length > 0 ? bosses : Array.from({length:5},(_,i) => ({id:i+1,name:`Boss ${i+1}`,description:'',eloStrength:'?',rewardName:'?',progress:null}))).map((boss, i) => {
+        {(!loading && bosses.length > 0 ? bosses : []).map((boss, i) => {
           const beaten = boss.progress?.beaten;
           const locked = i > 0 && !bosses[i-1]?.progress?.beaten;
           return (

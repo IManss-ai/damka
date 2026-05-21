@@ -63,6 +63,17 @@ function handle(fn: (...args: any[]) => Promise<void>) {
   return (...args: any[]) => fn(...args).catch(err => console.error('[socket error]', err));
 }
 
+// Purge AI/boss games that have been idle for 2 hours — they never self-terminate
+// if the player abandons mid-game, which grows activeGames without bound (OOM risk).
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  for (const [id, game] of activeGames) {
+    if ((game.aiDifficulty || game.bossId) && game.startTime < cutoff) {
+      activeGames.delete(id);
+    }
+  }
+}, 30 * 60 * 1000); // run every 30 minutes
+
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
 
@@ -159,6 +170,7 @@ export function setupSocket(io: Server) {
       const game = activeGames.get(gameId);
       if (!game) { socket.emit('game:error', { message: 'Game not found' }); return; }
       game.spectators++;
+      socket.data.spectatingGameId = gameId;
       socket.join(`game:${gameId}`);
       socket.emit('game:state', { state: game.state, whiteUsername: game.whiteUsername, blackUsername: game.blackUsername });
       io.to(`game:${gameId}`).emit('game:spectators', { count: game.spectators });
@@ -396,8 +408,11 @@ export function setupSocket(io: Server) {
     });
 
     socket.on('disconnect', () => {
-      for (const [, game] of activeGames) {
-        if (game.spectators > 0) game.spectators--;
+      // Only decrement spectators for the game this socket was actually watching
+      const spectatedId = socket.data.spectatingGameId as string | undefined;
+      if (spectatedId) {
+        const g = activeGames.get(spectatedId);
+        if (g && g.spectators > 0) g.spectators--;
       }
       // Drop disconnected user from the tournament queue
       const idx = tournamentQueue.findIndex(p => p.socketId === socket.id);
